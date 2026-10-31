@@ -4,19 +4,23 @@ An authentic, production-grade clone of **[Porter.in](https://porter.in)** built
 
 ---
 
-## 🚀 Live Application URLs
+## 🚀 Live Production & Deployment URLs
 
-The application is actively running on:
-- **Homepage:** [http://localhost:3000/](http://localhost:3000/)
-- **Fare Estimate & Booking:** [http://localhost:3000/fare-estimate](http://localhost:3000/fare-estimate)
-- **Packers & Movers (House Shifting):** [http://localhost:3000/packers-and-movers](http://localhost:3000/packers-and-movers)
-- **All India Parcel Courier:** [http://localhost:3000/all-india-parcel](http://localhost:3000/all-india-parcel)
-- **Porter Enterprise (B2B):** [http://localhost:3000/enterprise](http://localhost:3000/enterprise)
-- **City Mini Trucks (Tata Ace):** [http://localhost:3000/trucks-mumbai](http://localhost:3000/trucks-mumbai)
-- **Two-Wheelers (Instant Courier):** [http://localhost:3000/two-wheelers-mumbai](http://localhost:3000/two-wheelers-mumbai)
-- **Live Order Tracking & GPS Telemetry:** [http://localhost:3000/track](http://localhost:3000/track)
-- **Admin Dispatch Console:** [http://localhost:3000/admin](http://localhost:3000/admin)
-- **Driver Partner Portal:** [http://localhost:3000/driver](http://localhost:3000/driver)
+- **🌐 Live Vercel Production:** **[https://porter-logistics.vercel.app](https://porter-logistics.vercel.app)**
+- **📦 GitHub Repository:** **[https://github.com/AnkitTiwari2005/Porter](https://github.com/AnkitTiwari2005/Porter)**
+- **💻 Local Dev Environment:** [http://localhost:3000/](http://localhost:3000/)
+
+### Direct Feature Routes (Production):
+- **Homepage:** [https://porter-logistics.vercel.app/](https://porter-logistics.vercel.app/)
+- **Fare Estimate & Leaflet Route Map:** [https://porter-logistics.vercel.app/fare-estimate](https://porter-logistics.vercel.app/fare-estimate)
+- **Packers & Movers (House Shifting):** [https://porter-logistics.vercel.app/packers-and-movers](https://porter-logistics.vercel.app/packers-and-movers)
+- **All India Parcel Courier:** [https://porter-logistics.vercel.app/all-india-parcel](https://porter-logistics.vercel.app/all-india-parcel)
+- **Porter Enterprise (B2B):** [https://porter-logistics.vercel.app/enterprise](https://porter-logistics.vercel.app/enterprise)
+- **City Mini Trucks (Tata Ace):** [https://porter-logistics.vercel.app/trucks-mumbai](https://porter-logistics.vercel.app/trucks-mumbai)
+- **Two-Wheelers (Instant Courier):** [https://porter-logistics.vercel.app/two-wheelers-mumbai](https://porter-logistics.vercel.app/two-wheelers-mumbai)
+- **Live Order Tracking & GPS Telemetry:** [https://porter-logistics.vercel.app/track](https://porter-logistics.vercel.app/track)
+- **Admin Dispatch Console:** [https://porter-logistics.vercel.app/admin](https://porter-logistics.vercel.app/admin)
+- **Driver Partner Portal:** [https://porter-logistics.vercel.app/driver](https://porter-logistics.vercel.app/driver)
 
 ---
 
