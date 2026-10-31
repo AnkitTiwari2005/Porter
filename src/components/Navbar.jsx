@@ -27,9 +27,9 @@ export default function Navbar() {
   const isActive = (path) => location.pathname === path;
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-white shadow-sm border-b border-gray-100">
-      {/* Top Corporate Header Strip */}
-      <div className="bg-[#000000] text-gray-300 text-xs py-2 px-4 sm:px-8 border-b border-gray-800">
+    <header className="sticky top-0 z-40 w-full bg-white shadow-sm border-b border-gray-100 overflow-x-clip">
+      {/* Top Corporate Header Strip - Hidden on mobile to protect viewport width */}
+      <div className="hidden sm:block bg-[#000000] text-gray-300 text-xs py-2 px-4 sm:px-8 border-b border-gray-800">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
             <span className="hidden sm:inline text-gray-300 font-medium">
@@ -65,9 +65,9 @@ export default function Navbar() {
       </div>
 
       {/* Main Portex Header Bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-3 sm:px-8 py-2.5 sm:py-3.5 flex items-center justify-between gap-2 sm:gap-4">
         {/* Brand Logo & City Selector */}
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-2 sm:gap-5 min-w-0">
           <Link to="/" className="flex items-center shrink-0">
             <BrandLogo />
           </Link>
@@ -75,10 +75,10 @@ export default function Navbar() {
           {/* City selector pill */}
           <button
             onClick={() => setIsCityModalOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 hover:bg-blue-50 border border-gray-200 hover:border-porter-blue/50 rounded-full text-xs font-semibold text-gray-800 transition group"
+            className="flex items-center gap-1 sm:gap-2 px-2.5 py-1 sm:px-3 sm:py-1.5 bg-gray-50 hover:bg-blue-50 border border-gray-200 hover:border-porter-blue/50 rounded-full text-[11px] sm:text-xs font-semibold text-gray-800 transition group shrink-0"
           >
-            <MapPin className="w-3.5 h-3.5 text-porter-blue group-hover:scale-110 transition-transform" />
-            <span>{selectedCity?.name || 'Mumbai'}</span>
+            <MapPin className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-porter-blue group-hover:scale-110 transition-transform" />
+            <span className="max-w-[75px] sm:max-w-none truncate">{selectedCity?.name || 'Mumbai'}</span>
             <ChevronDown className="w-3 h-3 text-gray-400 group-hover:text-porter-blue" />
           </button>
         </div>
@@ -184,20 +184,20 @@ export default function Navbar() {
         </nav>
 
         {/* Right CTA Actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           {user.isLoggedIn ? (
             <div className="relative">
               <button
                 onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-gray-200 bg-gray-50 hover:bg-gray-100 transition"
+                className="flex items-center gap-1 sm:gap-2 px-1.5 py-1 sm:px-3 sm:py-1.5 rounded-full border border-gray-200 bg-gray-50 hover:bg-gray-100 transition shrink-0"
               >
-                <div className="w-7 h-7 rounded-full bg-porter-blue text-white text-xs font-bold flex items-center justify-center">
+                <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-porter-blue text-white text-xs font-bold flex items-center justify-center shrink-0">
                   {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
                 </div>
-                <span className="text-xs font-bold text-gray-800 hidden sm:inline">
+                <span className="text-xs font-bold text-gray-800 hidden md:inline">
                   {user.name.split(' ')[0]}
                 </span>
-                <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+                <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-gray-400" />
               </button>
 
               {profileDropdownOpen && (
@@ -226,19 +226,21 @@ export default function Navbar() {
           ) : (
             <button
               onClick={() => setIsLoginModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-porter-blue hover:bg-porter-hover text-white text-xs font-bold shadow-md shadow-blue-500/20 transition"
+              className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-porter-blue hover:bg-porter-hover text-white text-xs font-bold shadow-md shadow-blue-500/20 transition shrink-0"
             >
               <User className="w-3.5 h-3.5" />
-              <span>Login / Register</span>
+              <span className="hidden sm:inline">Login / Register</span>
+              <span className="sm:hidden">Login</span>
             </button>
           )}
 
           {/* Mobile menu trigger */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="lg:hidden p-2 rounded-lg text-gray-700 hover:bg-gray-100 transition"
+            className="lg:hidden p-1.5 sm:p-2 rounded-lg text-gray-700 hover:bg-gray-100 transition shrink-0"
+            aria-label="Toggle Navigation Menu"
           >
-            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {mobileMenuOpen ? <X className="w-5 h-5 sm:w-6 sm:h-6" /> : <Menu className="w-5 h-5 sm:w-6 sm:h-6" />}
           </button>
         </div>
       </div>

@@ -53,23 +53,23 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-[#f8fafc]">
       {/* HERO SECTION WITH SOLE USER VIDEO BACKGROUND */}
-      <section className="relative bg-[#070b14] text-white overflow-hidden py-14 md:py-24 px-4 sm:px-8 border-b border-indigo-900/30">
+      <section className="relative bg-[#070b14] text-white overflow-hidden py-10 sm:py-16 md:py-24 px-4 sm:px-8 border-b border-indigo-900/30 w-full max-w-full">
         {/* Layer 1: Strictly User's Looping Video */}
-        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden select-none">
           <video
             autoPlay
             loop
             muted
             playsInline
-            className="absolute inset-0 w-full h-full object-cover object-center transform scale-105 filter brightness-95 contrast-105 opacity-65"
+            className="absolute inset-0 w-full h-full object-cover object-center filter brightness-95 contrast-105 opacity-65"
           >
             <source src="/videos/hero-traffic.webm" type="video/webm" />
           </video>
 
-          {/* Radiant Ambient Color Orbs */}
-          <div className="absolute -top-32 -left-32 w-[520px] h-[520px] rounded-full bg-indigo-600/25 blur-[130px] animate-ambient-glow pointer-events-none"></div>
-          <div className="absolute top-1/3 left-1/4 w-[420px] h-[420px] rounded-full bg-amber-500/10 blur-[120px] pointer-events-none"></div>
-          <div className="absolute -bottom-24 right-1/4 w-[480px] h-[480px] rounded-full bg-blue-500/20 blur-[140px] pointer-events-none"></div>
+          {/* Radiant Ambient Color Orbs - Strictly bounded */}
+          <div className="absolute -top-16 -left-16 sm:-top-32 sm:-left-32 w-64 sm:w-[520px] h-64 sm:h-[520px] rounded-full bg-indigo-600/25 blur-3xl sm:blur-[130px] animate-ambient-glow pointer-events-none"></div>
+          <div className="absolute top-1/3 left-1/4 w-48 sm:w-[420px] h-48 sm:h-[420px] rounded-full bg-amber-500/10 blur-3xl sm:blur-[120px] pointer-events-none"></div>
+          <div className="absolute -bottom-16 right-0 sm:-bottom-24 sm:right-1/4 w-60 sm:w-[480px] h-60 sm:h-[480px] rounded-full bg-blue-500/20 blur-3xl sm:blur-[140px] pointer-events-none"></div>
 
           {/* Subtle Digital Tech Grid Overlay */}
           <div className="absolute inset-0 opacity-[0.10] bg-[linear-gradient(to_right,#818cf8_1px,transparent_1px),linear-gradient(to_bottom,#818cf8_1px,transparent_1px)] [background-size:40px_40px] pointer-events-none"></div>
@@ -79,38 +79,38 @@ export default function HomePage() {
           <div className="absolute inset-0 bg-gradient-to-t from-[#070b14] via-transparent to-[#070b14]/50 pointer-events-none"></div>
         </div>
 
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center relative z-10">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14 items-center relative z-10 w-full">
           {/* Left Hero Pitch */}
-          <div className="lg:col-span-6 space-y-7">
-            <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-indigo-950/70 backdrop-blur-md border border-indigo-400/30 text-xs font-semibold text-indigo-200 shadow-lg shadow-indigo-950/50">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse ring-4 ring-emerald-400/20"></span>
-              <span className="tracking-wide">Available across {selectedCity?.name || 'Mumbai'} & 19+ Indian Cities</span>
+          <div className="lg:col-span-6 space-y-5 sm:space-y-7 min-w-0">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full bg-indigo-950/70 backdrop-blur-md border border-indigo-400/30 text-xs font-semibold text-indigo-200 shadow-lg shadow-indigo-950/50">
+              <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-400 animate-pulse ring-4 ring-emerald-400/20"></span>
+              <span className="tracking-wide text-[11px] sm:text-xs">Available across {selectedCity?.name || 'Mumbai'} & 19+ Indian Cities</span>
             </div>
 
-            <h1 className="font-display text-4xl sm:text-6xl font-black tracking-tight leading-[1.08] text-white">
+            <h1 className="font-display text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.1] text-white">
               High-Speed Freight & Delivery, <br />
               <span className="bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-200 bg-clip-text text-transparent drop-shadow-sm">
                 At the Tap of a Button
               </span>
             </h1>
 
-            <p className="text-base sm:text-lg text-slate-300 max-w-xl font-normal leading-relaxed">
+            <p className="text-sm sm:text-lg text-slate-300 max-w-xl font-normal leading-relaxed">
               India's next-generation on-demand logistics network. Instant mini trucks, quick city 2-wheelers, and verified home shifting across 19+ cities with upfront guaranteed fares.
             </p>
 
             {/* Portex Performance Pillars with Elevated Glass Style */}
-            <div className="grid grid-cols-3 gap-4 pt-6 border-t border-white/10 max-w-lg">
-              <div className="bg-white/5 backdrop-blur-md p-3.5 rounded-2xl border border-white/10">
-                <span className="font-display text-2xl sm:text-3xl font-black text-white block">12 Mins</span>
-                <span className="text-[11px] font-semibold text-indigo-200 uppercase tracking-wider mt-0.5 block">Avg. Pickup</span>
+            <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-4 sm:pt-6 border-t border-white/10 max-w-lg w-full">
+              <div className="bg-white/5 backdrop-blur-md p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl border border-white/10 text-center sm:text-left">
+                <span className="font-display text-lg sm:text-2xl lg:text-3xl font-black text-white block">12 Mins</span>
+                <span className="text-[10px] sm:text-[11px] font-semibold text-indigo-200 uppercase tracking-wider mt-0.5 block leading-tight">Avg. Pickup</span>
               </div>
-              <div className="bg-white/5 backdrop-blur-md p-3.5 rounded-2xl border border-white/10">
-                <span className="font-display text-2xl sm:text-3xl font-black text-white block">2.4 Cr+</span>
-                <span className="text-[11px] font-semibold text-indigo-200 uppercase tracking-wider mt-0.5 block">Km Delivered</span>
+              <div className="bg-white/5 backdrop-blur-md p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl border border-white/10 text-center sm:text-left">
+                <span className="font-display text-lg sm:text-2xl lg:text-3xl font-black text-white block">2.4 Cr+</span>
+                <span className="text-[10px] sm:text-[11px] font-semibold text-indigo-200 uppercase tracking-wider mt-0.5 block leading-tight">Km Delivered</span>
               </div>
-              <div className="bg-white/5 backdrop-blur-md p-3.5 rounded-2xl border border-white/10">
-                <span className="font-display text-2xl sm:text-3xl font-black text-emerald-400 block">99.6%</span>
-                <span className="text-[11px] font-semibold text-indigo-200 uppercase tracking-wider mt-0.5 block">Safe Transit</span>
+              <div className="bg-white/5 backdrop-blur-md p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl border border-white/10 text-center sm:text-left">
+                <span className="font-display text-lg sm:text-2xl lg:text-3xl font-black text-emerald-400 block">99.6%</span>
+                <span className="text-[10px] sm:text-[11px] font-semibold text-indigo-200 uppercase tracking-wider mt-0.5 block leading-tight">Safe Transit</span>
               </div>
             </div>
           </div>
