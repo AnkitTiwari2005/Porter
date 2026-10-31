@@ -35,7 +35,7 @@ export default function EnterprisePage() {
             </div>
 
             <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
-              Streamline Operations & Drive Business Growth
+              Enterprise Supply Chain & Dedicated Freight Infrastructure
             </h1>
 
             <p className="text-sm sm:text-base text-slate-300 max-w-xl leading-relaxed">

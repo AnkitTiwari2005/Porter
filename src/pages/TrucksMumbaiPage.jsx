@@ -33,20 +33,20 @@ export default function TrucksMumbaiPage() {
   return (
     <div className="min-h-screen bg-[#f8fafc]">
       {/* MUMBAI HERO */}
-      <section className="relative bg-gradient-to-r from-blue-900 via-blue-800 to-indigo-900 text-white py-14 px-4 sm:px-8 overflow-hidden">
+      <section className="relative bg-gradient-to-r from-slate-950 via-indigo-950 to-blue-950 text-white py-14 px-4 sm:px-8 overflow-hidden border-b border-indigo-900/40">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
           <div className="lg:col-span-7 space-y-5">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-xs font-bold text-blue-200">
-              <MapPin className="w-3.5 h-3.5 text-yellow-400" />
-              <span>Dedicated Mini Truck Transport in Mumbai & MMR</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-xs font-bold text-indigo-200">
+              <MapPin className="w-3.5 h-3.5 text-amber-400" />
+              <span>Dedicated Mini Truck Freight in Mumbai & MMR</span>
             </div>
 
             <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
-              Rent Mini Trucks Online in Mumbai
+              Instant Commercial Mini Trucks in Mumbai
             </h1>
 
-            <p className="text-sm sm:text-base text-blue-100 max-w-xl leading-relaxed">
-              Book Tata Ace, 3-Wheelers & Pickup 8ft starting at just ₹189. Reliable goods transportation for businesses, factory supplies, and household shifting across Mumbai, Thane & Navi Mumbai.
+            <p className="text-sm sm:text-base text-indigo-100 max-w-xl leading-relaxed">
+              Book Tata Ace, 3-Wheelers & Pickup 8ft starting at ₹189. Verified fleet partners for manufacturing supplies, wholesale goods, and bulk deliveries across Mumbai, Thane & Navi Mumbai.
             </p>
 
             <div className="flex flex-wrap gap-4 pt-2">

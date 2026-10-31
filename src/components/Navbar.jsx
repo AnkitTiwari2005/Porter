@@ -32,8 +32,8 @@ export default function Navbar() {
       <div className="bg-[#000000] text-gray-300 text-xs py-2 px-4 sm:px-8 border-b border-gray-800">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <span className="hidden sm:inline text-gray-400 font-medium">
-              Delivery Aapki, Transport Hamara • <span className="text-yellow-400 font-bold">#HoJayega</span>
+            <span className="hidden sm:inline text-gray-300 font-medium">
+              {BRANDING.tagline} • <span className="text-amber-400 font-bold">{BRANDING.hashtag}</span>
             </span>
           </div>
 

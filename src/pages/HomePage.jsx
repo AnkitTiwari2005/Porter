@@ -52,41 +52,41 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-[#f8fafc]">
-      {/* HERO SECTION WITH AUTHENTIC PORTER BANNER */}
-      <section className="relative bg-gradient-to-r from-[#002884] via-[#0a57ff] to-[#001f66] text-white overflow-hidden py-12 md:py-20 px-4 sm:px-8">
+      {/* HERO SECTION WITH PORTEX DYNAMIC PALETTE */}
+      <section className="relative bg-gradient-to-r from-slate-950 via-indigo-950 to-indigo-900 text-white overflow-hidden py-12 md:py-20 px-4 sm:px-8 border-b border-indigo-900/40">
         {/* Subtle patterned overlay */}
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1.5px,transparent_1.5px)] [background-size:20px_20px] pointer-events-none"></div>
 
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 items-center relative z-10">
           {/* Left Hero Pitch */}
           <div className="lg:col-span-6 space-y-6">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold text-blue-100">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold text-indigo-200">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
               <span>Available across {selectedCity?.name || 'Mumbai'} & 19+ Indian Cities</span>
             </div>
 
             <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
-              Delivery Aapki, <br />
-              <span className="text-yellow-300">Transport Hamara</span>
+              High-Speed Freight & Delivery, <br />
+              <span className="text-amber-400">At the Tap of a Button</span>
             </h1>
 
-            <p className="text-base sm:text-lg text-blue-100 max-w-xl font-normal leading-relaxed">
-              India's leading on-demand goods transport platform. Book mini trucks, 3-wheelers, and two-wheelers for hassle-free business logistics and home shifting.
+            <p className="text-base sm:text-lg text-indigo-100 max-w-xl font-normal leading-relaxed">
+              India's next-generation on-demand logistics network. Instant mini trucks, quick city 2-wheelers, and verified home shifting across 19+ cities with upfront guaranteed fares.
             </p>
 
-            {/* Porter Guarantees */}
+            {/* Portex Performance Pillars */}
             <div className="grid grid-cols-3 gap-4 pt-4 border-t border-white/20 max-w-lg">
               <div>
-                <span className="text-xl sm:text-2xl font-black text-white block">15 Mins</span>
-                <span className="text-xs text-blue-200">Avg. Driver Arrival</span>
+                <span className="text-xl sm:text-2xl font-black text-white block">12 Mins</span>
+                <span className="text-xs text-indigo-200">Avg. Partner Pickup</span>
               </div>
               <div>
-                <span className="text-xl sm:text-2xl font-black text-white block">1.5 Cr+</span>
-                <span className="text-xs text-blue-200">Trips Delivered</span>
+                <span className="text-xl sm:text-2xl font-black text-white block">2.4 Cr+</span>
+                <span className="text-xs text-indigo-200">Kilometers Delivered</span>
               </div>
               <div>
-                <span className="text-xl sm:text-2xl font-black text-white block">500,000+</span>
-                <span className="text-xs text-blue-200">Driver Partners</span>
+                <span className="text-xl sm:text-2xl font-black text-white block">99.6%</span>
+                <span className="text-xs text-indigo-200">Safe Delivery SLA</span>
               </div>
             </div>
           </div>
@@ -388,18 +388,18 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* WHY PORTER / PROPOSITIONS */}
+      {/* WHY PORTEX / PROPOSITIONS */}
       <section className="py-16 px-4 sm:px-8 max-w-7xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
           <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-porter-blue bg-blue-50 px-3 py-1 rounded-full">
-              Why Choose {BRANDING.name}
+            <span className="text-xs font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-200">
+              The {BRANDING.name} Advantage
             </span>
             <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mt-3 leading-snug">
-              Smart, Transparent & Reliable Logistics Across India
+              Why Modern Indian Logistics Runs on {BRANDING.name}
             </h2>
             <p className="text-sm text-gray-600 mt-3 leading-relaxed">
-              No bargaining with roadside drivers. Get instant verified drivers, accurate GPS tracking, and transparent upfront fare quotes.
+              Say goodbye to roadside haggling and unreliable fleet arrival times. Benefit from automated driver allocation, real-time telemetry, and 100% transparent itemized invoicing.
             </p>
 
             <div className="space-y-4 mt-6">
@@ -408,8 +408,8 @@ export default function HomePage() {
                   <CheckCircle2 className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-gray-800">Guaranteed Transparent Pricing</h4>
-                  <p className="text-xs text-gray-500 mt-0.5">Upfront price calculation with zero surge surprises or roadside price negotiations.</p>
+                  <h4 className="text-sm font-bold text-gray-800">100% Algorithmic Rate Transparency</h4>
+                  <p className="text-xs text-gray-500 mt-0.5">Guaranteed upfront rate cards covering base fare, fuel, and helpers with zero surge spikes.</p>
                 </div>
               </div>
 
@@ -418,8 +418,8 @@ export default function HomePage() {
                   <CheckCircle2 className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-gray-800">Fast 15-Minute Driver Dispatch</h4>
-                  <p className="text-xs text-gray-500 mt-0.5">With over 500,000 driver partners, a vehicle is always stationed near your location.</p>
+                  <h4 className="text-sm font-bold text-gray-800">Rapid 12-Minute Partner Allocation</h4>
+                  <p className="text-xs text-gray-500 mt-0.5">Over 50,000 screened commercial trucks and EV two-wheelers stationed across key industrial hubs.</p>
                 </div>
               </div>
 
@@ -428,20 +428,20 @@ export default function HomePage() {
                   <CheckCircle2 className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-gray-800">Real-Time Live GPS Tracking</h4>
-                  <p className="text-xs text-gray-500 mt-0.5">Share live trip link with receivers for contactless delivery and secure OTP verification.</p>
+                  <h4 className="text-sm font-bold text-gray-800">Live Telemetry & Contactless OTP Delivery</h4>
+                  <p className="text-xs text-gray-500 mt-0.5">Share live trip link with receivers for turn-by-turn tracking and tamper-proof OTP handover.</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* App download card */}
-          <div className="bg-gradient-to-br from-porter-navy to-porter-blue rounded-3xl p-8 text-white relative overflow-hidden shadow-2xl">
+          {/* App download card with updated Indigo-Obsidian gradient */}
+          <div className="bg-gradient-to-br from-slate-950 via-indigo-950 to-indigo-900 rounded-3xl p-8 text-white relative overflow-hidden shadow-2xl border border-indigo-900/50">
             <div className="relative z-10 space-y-5">
-              <span className="text-xs font-bold uppercase tracking-wider text-blue-200">Mobile App</span>
-              <h3 className="text-2xl font-black">Get the {BRANDING.name} App for Instant 1-Tap Booking</h3>
-              <p className="text-xs text-blue-100 leading-relaxed">
-                Scan the QR code with your phone camera or download directly from Google Play Store or Apple App Store.
+              <span className="text-xs font-bold uppercase tracking-wider text-amber-400">Mobile On-Demand</span>
+              <h3 className="text-2xl font-black">Ship & Track Cargo with the {BRANDING.name} App</h3>
+              <p className="text-xs text-indigo-100 leading-relaxed">
+                Book mini trucks or courier bikes with one tap. Scan the QR code with your smartphone camera to install immediately on Android & iOS.
               </p>
 
               <div className="flex items-center gap-6 pt-2">

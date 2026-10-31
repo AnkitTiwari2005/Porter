@@ -58,20 +58,20 @@ export default function AllIndiaParcelPage() {
   return (
     <div className="min-h-screen bg-[#f8fafc] py-8 px-4 sm:px-8">
       <div className="max-w-6xl mx-auto space-y-8">
-        {/* Banner */}
-        <div className="bg-gradient-to-r from-blue-900 via-sky-900 to-indigo-900 rounded-3xl p-8 text-white relative overflow-hidden shadow-xl">
+        {/* Banner with Portex Palette */}
+        <div className="bg-gradient-to-r from-slate-950 via-indigo-950 to-blue-950 rounded-3xl p-8 text-white relative overflow-hidden shadow-xl border border-indigo-900/50">
           <div className="relative z-10 max-w-2xl space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-xs font-bold text-sky-200">
-              <Package className="w-3.5 h-3.5 text-yellow-300" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-xs font-bold text-indigo-200">
+              <Package className="w-3.5 h-3.5 text-amber-400" />
               <span>Doorstep Intercity Courier • 19,000+ Pincodes Serviced</span>
             </div>
 
             <h1 className="text-3xl sm:text-4xl font-black">
-              Send Parcels Anywhere in India
+              Nationwide Doorstep Parcel Courier
             </h1>
 
-            <p className="text-xs sm:text-sm text-sky-100 leading-relaxed">
-              Doorstep pickup with real-time tracking, free packing assistance, and express air delivery across major cities.
+            <p className="text-xs sm:text-sm text-indigo-100 leading-relaxed">
+              Fast, insured intercity shipping covering 19,000+ pincodes. Doorstep pickup with real-time tracking, free packing assistance, and express air delivery across major cities.
             </p>
 
             <div className="flex flex-wrap gap-4 pt-2 text-xs">

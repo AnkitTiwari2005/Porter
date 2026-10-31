@@ -31,9 +31,9 @@ const createCustomIcon = (bgColor, label, isTruck = false) => {
 };
 
 const pickupIcon = createCustomIcon('#10b981', 'P');
-const dropIcon = createCustomIcon('#ef4444', 'D');
+const dropIcon = createCustomIcon('#f43f5e', 'D');
 const stopIcon = createCustomIcon('#f59e0b', 'S');
-const truckIcon = createCustomIcon('#0a57ff', '🚚', true);
+const truckIcon = createCustomIcon('#4338ca', '🚚', true);
 
 // Component to dynamically fit bounds of both points
 function MapBoundsUpdater({ points }) {
@@ -97,14 +97,14 @@ export default function InteractiveMap({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        {/* Route Polyline in Porter Royal Blue */}
+        {/* Route Polyline in Portex Electric Indigo */}
         <Polyline
           positions={routePoints}
-          pathOptions={{ color: '#002884', weight: 6, opacity: 0.25 }}
+          pathOptions={{ color: '#1e1b4b', weight: 6, opacity: 0.25 }}
         />
         <Polyline
           positions={routePoints}
-          pathOptions={{ color: '#0a57ff', weight: 4, dashArray: '6, 8', opacity: 0.95 }}
+          pathOptions={{ color: '#4338ca', weight: 4, dashArray: '6, 8', opacity: 0.95 }}
         />
 
         {/* Pickup Marker */}

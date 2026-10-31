@@ -8,32 +8,32 @@ export default {
     extend: {
       colors: {
         porter: {
-          blue: '#0a57ff',        // Iconic Porter Blue
-          hover: '#0047e0',       // Darker blue hover
-          light: '#f0f4ff',       // Light blue accent
-          accent: '#2962ff',      // Bright blue
-          dark: '#1e2432',        // Top bar slate
-          navy: '#001366',        // Deep corporate navy
-          green: '#0d8154',       // Emerald status green
-          lightgreen: '#d4f7e2',  // Soft status green pill
+          blue: '#4338ca',        // Deep Electric Indigo
+          hover: '#3730a3',       // Darker Indigo hover
+          light: '#eef2ff',       // Light Indigo accent
+          accent: '#6366f1',      // Vibrant Indigo
+          dark: '#0f172a',        // Obsidian Slate
+          navy: '#1e1b4b',        // Midnight Indigo
+          green: '#059669',       // Clean Emerald status
+          lightgreen: '#d1fae5',  // Soft status green pill
           card: '#ffffff',
-          subtext: '#707582',     // Porter grey subtext
-          border: '#e5e7eb',
-          drop: '#e03748'         // Drop indicator red
+          subtext: '#64748b',     // Modern cool slate subtext
+          border: '#e2e8f0',
+          drop: '#f43f5e'         // Drop indicator rose red
         },
-        // Alias for components using loadpulse classes
+        // Brand palette alias
         loadpulse: {
-          orange: '#0a57ff',
-          hover: '#0047e0',
-          light: '#f0f4ff',
-          accent: '#2962ff',
-          dark: '#1e2432',
-          slate: '#2d2f34',
+          orange: '#4338ca',
+          hover: '#3730a3',
+          light: '#eef2ff',
+          accent: '#6366f1',
+          dark: '#0f172a',
+          slate: '#1e293b',
           card: '#ffffff',
-          subtext: '#707582',
-          border: '#e5e7eb',
-          emerald: '#0d8154',
-          blue: '#0a57ff'
+          subtext: '#64748b',
+          border: '#e2e8f0',
+          emerald: '#059669',
+          blue: '#4338ca'
         }
       },
       fontFamily: {

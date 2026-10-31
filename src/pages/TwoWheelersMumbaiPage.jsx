@@ -42,11 +42,11 @@ export default function TwoWheelersMumbaiPage() {
             </div>
 
             <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
-              Fastest Doorstep Courier for Parcels up to 20 kg
+              Rapid Hyperlocal Courier for Parcels up to 20 kg
             </h1>
 
             <p className="text-sm sm:text-base text-emerald-100 max-w-xl leading-relaxed">
-              Send anything across the city in minutes. Starting at just ₹42. Ideal for urgent documents, forgotten chargers, keys, food boxes, medicines and e-commerce orders.
+              Send essentials across {selectedCity.name} in minutes. Starting at just ₹42. Ideal for business contracts, forgotten keys, medicines, food packages, and retail consignments.
             </p>
 
             <div className="flex flex-wrap gap-4 pt-2">

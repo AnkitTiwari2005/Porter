@@ -74,19 +74,19 @@ export default function PackersMoversPage() {
   return (
     <div className="min-h-screen bg-[#f8fafc] py-8 px-4 sm:px-8">
       <div className="max-w-6xl mx-auto space-y-8">
-        {/* Hero Banner */}
-        <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-blue-900 rounded-3xl p-8 text-white relative overflow-hidden shadow-xl">
+        {/* Hero Banner with Portex Palette */}
+        <div className="bg-gradient-to-r from-slate-950 via-indigo-950 to-purple-950 rounded-3xl p-8 text-white relative overflow-hidden shadow-xl border border-indigo-900/50">
           <div className="relative z-10 max-w-2xl space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-xs font-bold text-purple-200">
-              <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
-              <span>{BRANDING.name} Verified House Shifting Specialists</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-xs font-bold text-indigo-200">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span>{BRANDING.name} Verified Relocation Specialists</span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-black">
-              House Shifting Hai? <br />
-              <span className="text-yellow-300">#HoJayega</span>
+              Relocating Your Home? <br />
+              <span className="text-amber-400">Zero-Stress Shifting</span>
             </h1>
-            <p className="text-xs sm:text-sm text-purple-100 leading-relaxed">
-              Complete packing, safe multi-layer bubble wrapping, dismantling, transportation, and careful unpacking at your new home in {selectedCity.name}.
+            <p className="text-xs sm:text-sm text-indigo-100 leading-relaxed">
+              Complete multi-layer bubble wrapping, skilled carpenter dismantling, reliable transportation, and careful room-by-room unpacking at your new home in {selectedCity.name}.
             </p>
 
             <div className="flex flex-wrap gap-4 pt-2 text-xs">
