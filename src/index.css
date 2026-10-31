@@ -7,8 +7,30 @@
 @layer base {
   html {
     scroll-behavior: smooth;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   }
+  h1, h2, h3, h4, .font-heading {
+    font-family: 'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif;
+  }
+}
+
+@keyframes slowZoom {
+  0% { transform: scale(1.02); }
+  50% { transform: scale(1.07); }
+  100% { transform: scale(1.02); }
+}
+
+@keyframes ambientGlow {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 0.65; transform: scale(1.12); }
+}
+
+.animate-slow-zoom {
+  animation: slowZoom 22s ease-in-out infinite;
+}
+
+.animate-ambient-glow {
+  animation: ambientGlow 8s ease-in-out infinite;
 }
 
 /* LoadPulse custom shadow & animations */

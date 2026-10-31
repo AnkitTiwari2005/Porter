@@ -52,66 +52,106 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-[#f8fafc]">
-      {/* HERO SECTION WITH PORTEX DYNAMIC PALETTE & FLUX.2 PHOTOREALISTIC BACKGROUND */}
-      <section className="relative bg-slate-950 text-white overflow-hidden py-14 md:py-24 px-4 sm:px-8 border-b border-indigo-900/40">
-        {/* Background Image with Cinematic Multi-layer Overlay */}
-        <div className="absolute inset-0 pointer-events-none z-0">
+      {/* HERO SECTION WITH DYNAMIC VIDEO/PHOTO BACKGROUND & RADIANT EFFECTS */}
+      <section className="relative bg-[#070b14] text-white overflow-hidden py-14 md:py-24 px-4 sm:px-8 border-b border-indigo-900/30">
+        {/* Layer 1: Looping Video + Photorealistic Fallback Image */}
+        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+          {/* Looping ambient highway video */}
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            poster="/images/hero-logistics-bg.webp"
+            className="absolute inset-0 w-full h-full object-cover object-center transform scale-105 filter brightness-90 contrast-110 animate-slow-zoom opacity-45"
+          >
+            <source src="/videos/hero-traffic.mp4" type="video/mp4" />
+          </video>
+
+          {/* High-detail FLUX fallback photo backing */}
           <img 
             src="/images/hero-logistics-bg.webp" 
             alt="Portex Logistics High-Speed Highway Network" 
-            className="w-full h-full object-cover object-center opacity-30 transform scale-105 filter blur-[0.3px]"
+            className="absolute inset-0 w-full h-full object-cover object-center opacity-30 mix-blend-screen pointer-events-none"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/90 to-indigo-950/75"></div>
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-slate-950/60"></div>
-          <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1.5px,transparent_1.5px)] [background-size:20px_20px]"></div>
+
+          {/* Radiant Ambient Color Orbs */}
+          <div className="absolute -top-32 -left-32 w-[520px] h-[520px] rounded-full bg-indigo-600/30 blur-[130px] animate-ambient-glow pointer-events-none"></div>
+          <div className="absolute top-1/3 left-1/4 w-[420px] h-[420px] rounded-full bg-amber-500/15 blur-[120px] pointer-events-none"></div>
+          <div className="absolute -bottom-24 right-1/4 w-[480px] h-[480px] rounded-full bg-blue-500/25 blur-[140px] pointer-events-none"></div>
+
+          {/* Precision Digital Tech Grid Overlay */}
+          <div className="absolute inset-0 opacity-[0.14] bg-[linear-gradient(to_right,#818cf8_1px,transparent_1px),linear-gradient(to_bottom,#818cf8_1px,transparent_1px)] [background-size:40px_40px] pointer-events-none"></div>
+
+          {/* Multi-angle cinematic gradient masks */}
+          <div className="absolute inset-0 bg-gradient-to-r from-[#070b14]/95 via-[#070b14]/75 to-[#070b14]/40 pointer-events-none"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-[#070b14] via-transparent to-[#070b14]/60 pointer-events-none"></div>
         </div>
 
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 items-center relative z-10">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center relative z-10">
           {/* Left Hero Pitch */}
-          <div className="lg:col-span-6 space-y-6">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold text-indigo-200">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span>Available across {selectedCity?.name || 'Mumbai'} & 19+ Indian Cities</span>
+          <div className="lg:col-span-6 space-y-7">
+            <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-indigo-950/70 backdrop-blur-md border border-indigo-400/30 text-xs font-semibold text-indigo-200 shadow-lg shadow-indigo-950/50">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse ring-4 ring-emerald-400/20"></span>
+              <span className="tracking-wide">Available across {selectedCity?.name || 'Mumbai'} & 19+ Indian Cities</span>
             </div>
 
-            <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
+            <h1 className="font-display text-4xl sm:text-6xl font-black tracking-tight leading-[1.08] text-white">
               High-Speed Freight & Delivery, <br />
-              <span className="text-amber-400">At the Tap of a Button</span>
+              <span className="bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-200 bg-clip-text text-transparent drop-shadow-sm">
+                At the Tap of a Button
+              </span>
             </h1>
 
-            <p className="text-base sm:text-lg text-indigo-100 max-w-xl font-normal leading-relaxed">
+            <p className="text-base sm:text-lg text-slate-300 max-w-xl font-normal leading-relaxed">
               India's next-generation on-demand logistics network. Instant mini trucks, quick city 2-wheelers, and verified home shifting across 19+ cities with upfront guaranteed fares.
             </p>
 
-            {/* Portex Performance Pillars */}
-            <div className="grid grid-cols-3 gap-4 pt-4 border-t border-white/20 max-w-lg">
-              <div>
-                <span className="text-xl sm:text-2xl font-black text-white block">12 Mins</span>
-                <span className="text-xs text-indigo-200">Avg. Partner Pickup</span>
+            {/* Portex Performance Pillars with Elevated Glass Style */}
+            <div className="grid grid-cols-3 gap-4 pt-6 border-t border-white/10 max-w-lg">
+              <div className="bg-white/5 backdrop-blur-md p-3.5 rounded-2xl border border-white/10">
+                <span className="font-display text-2xl sm:text-3xl font-black text-white block">12 Mins</span>
+                <span className="text-[11px] font-semibold text-indigo-200 uppercase tracking-wider mt-0.5 block">Avg. Pickup</span>
               </div>
-              <div>
-                <span className="text-xl sm:text-2xl font-black text-white block">2.4 Cr+</span>
-                <span className="text-xs text-indigo-200">Kilometers Delivered</span>
+              <div className="bg-white/5 backdrop-blur-md p-3.5 rounded-2xl border border-white/10">
+                <span className="font-display text-2xl sm:text-3xl font-black text-white block">2.4 Cr+</span>
+                <span className="text-[11px] font-semibold text-indigo-200 uppercase tracking-wider mt-0.5 block">Km Delivered</span>
               </div>
-              <div>
-                <span className="text-xl sm:text-2xl font-black text-white block">99.6%</span>
-                <span className="text-xs text-indigo-200">Safe Delivery SLA</span>
+              <div className="bg-white/5 backdrop-blur-md p-3.5 rounded-2xl border border-white/10">
+                <span className="font-display text-2xl sm:text-3xl font-black text-emerald-400 block">99.6%</span>
+                <span className="text-[11px] font-semibold text-indigo-200 uppercase tracking-wider mt-0.5 block">Safe Transit</span>
               </div>
             </div>
           </div>
 
-          {/* Right Hero Booking Card */}
+          {/* Right Hero Booking Card - Ultra Premium Glassmorphic */}
           <div className="lg:col-span-6">
-            <div className="bg-white rounded-3xl shadow-2xl p-6 sm:p-8 text-gray-900 border border-gray-100">
+            <div className="bg-white/95 backdrop-blur-2xl rounded-3xl p-6 sm:p-8 text-gray-900 shadow-[0_25px_60px_-15px_rgba(15,23,42,0.6)] border border-white/70 relative">
+              {/* Subtle top indicator */}
+              <div className="flex items-center justify-between text-xs text-slate-500 pb-3 mb-2 border-b border-slate-100">
+                <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                  Instant Fleet Dispatch
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsCityModalOpen(true)}
+                  className="text-porter-blue font-bold flex items-center gap-1 hover:underline group"
+                >
+                  <MapPin className="w-3.5 h-3.5 text-porter-blue group-hover:scale-110 transition-transform" />
+                  <span>{selectedCity?.name} (Change City)</span>
+                </button>
+              </div>
+
               {/* Service Tab Switcher */}
-              <div className="grid grid-cols-4 gap-2 p-1.5 bg-gray-100 rounded-2xl mb-6">
+              <div className="grid grid-cols-4 gap-2 p-1.5 bg-slate-100/90 rounded-2xl mb-6">
                 <button
                   type="button"
                   onClick={() => setActiveTab('trucks')}
-                  className={`flex flex-col items-center justify-center py-2.5 px-1 rounded-xl text-xs font-bold transition ${
+                  className={`flex flex-col items-center justify-center py-2.5 px-1 rounded-xl text-xs font-bold transition-all ${
                     activeTab === 'trucks'
-                      ? 'bg-white text-porter-blue shadow-md'
-                      : 'text-gray-500 hover:text-gray-900'
+                      ? 'bg-porter-blue text-white shadow-lg shadow-indigo-600/30 scale-[1.02]'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
                   }`}
                 >
                   <Truck className="w-4 h-4 mb-1" />
@@ -121,10 +161,10 @@ export default function HomePage() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('two-wheeler')}
-                  className={`flex flex-col items-center justify-center py-2.5 px-1 rounded-xl text-xs font-bold transition ${
+                  className={`flex flex-col items-center justify-center py-2.5 px-1 rounded-xl text-xs font-bold transition-all ${
                     activeTab === 'two-wheeler'
-                      ? 'bg-white text-porter-blue shadow-md'
-                      : 'text-gray-500 hover:text-gray-900'
+                      ? 'bg-porter-blue text-white shadow-lg shadow-indigo-600/30 scale-[1.02]'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
                   }`}
                 >
                   <Bike className="w-4 h-4 mb-1" />
@@ -134,10 +174,10 @@ export default function HomePage() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('packers')}
-                  className={`flex flex-col items-center justify-center py-2.5 px-1 rounded-xl text-xs font-bold transition ${
+                  className={`flex flex-col items-center justify-center py-2.5 px-1 rounded-xl text-xs font-bold transition-all ${
                     activeTab === 'packers'
-                      ? 'bg-white text-porter-blue shadow-md'
-                      : 'text-gray-500 hover:text-gray-900'
+                      ? 'bg-porter-blue text-white shadow-lg shadow-indigo-600/30 scale-[1.02]'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
                   }`}
                 >
                   <Home className="w-4 h-4 mb-1" />
@@ -147,10 +187,10 @@ export default function HomePage() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('parcel')}
-                  className={`flex flex-col items-center justify-center py-2.5 px-1 rounded-xl text-xs font-bold transition ${
+                  className={`flex flex-col items-center justify-center py-2.5 px-1 rounded-xl text-xs font-bold transition-all ${
                     activeTab === 'parcel'
-                      ? 'bg-white text-porter-blue shadow-md'
-                      : 'text-gray-500 hover:text-gray-900'
+                      ? 'bg-porter-blue text-white shadow-lg shadow-indigo-600/30 scale-[1.02]'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
                   }`}
                 >
                   <Package className="w-4 h-4 mb-1" />
@@ -160,19 +200,6 @@ export default function HomePage() {
 
               {/* Booking Inputs Form */}
               <form onSubmit={handleQuickEstimate} className="space-y-4">
-                {/* City reminder */}
-                <div className="flex items-center justify-between text-xs text-gray-500 pb-1">
-                  <span className="font-semibold text-gray-700">Booking in:</span>
-                  <button
-                    type="button"
-                    onClick={() => setIsCityModalOpen(true)}
-                    className="text-porter-blue font-bold flex items-center gap-1 hover:underline"
-                  >
-                    <MapPin className="w-3.5 h-3.5" />
-                    <span>{selectedCity?.name} (Change City)</span>
-                  </button>
-                </div>
-
                 {/* Smart Autocomplete Pickup input */}
                 <LocationSearchInput
                   label="Pickup Location"
@@ -199,10 +226,10 @@ export default function HomePage() {
                 <div className="pt-2">
                   <button
                     type="submit"
-                    className="w-full py-4 bg-porter-blue hover:bg-porter-hover text-white rounded-xl font-bold text-sm shadow-xl shadow-blue-500/25 flex items-center justify-center gap-2 group transition"
+                    className="w-full py-4 bg-gradient-to-r from-[#4338ca] via-[#4f46e5] to-[#6366f1] hover:from-[#3730a3] hover:to-[#4338ca] text-white rounded-2xl font-bold font-display text-sm tracking-wide shadow-xl shadow-indigo-500/30 hover:shadow-indigo-500/40 flex items-center justify-center gap-2 group transition-all transform hover:-translate-y-0.5"
                   >
                     <span>Check Live Fare & Book</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
                   </button>
                 </div>
               </form>
