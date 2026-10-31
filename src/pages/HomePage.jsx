@@ -52,10 +52,19 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-[#f8fafc]">
-      {/* HERO SECTION WITH PORTEX DYNAMIC PALETTE */}
-      <section className="relative bg-gradient-to-r from-slate-950 via-indigo-950 to-indigo-900 text-white overflow-hidden py-12 md:py-20 px-4 sm:px-8 border-b border-indigo-900/40">
-        {/* Subtle patterned overlay */}
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1.5px,transparent_1.5px)] [background-size:20px_20px] pointer-events-none"></div>
+      {/* HERO SECTION WITH PORTEX DYNAMIC PALETTE & FLUX.2 PHOTOREALISTIC BACKGROUND */}
+      <section className="relative bg-slate-950 text-white overflow-hidden py-14 md:py-24 px-4 sm:px-8 border-b border-indigo-900/40">
+        {/* Background Image with Cinematic Multi-layer Overlay */}
+        <div className="absolute inset-0 pointer-events-none z-0">
+          <img 
+            src="/images/hero-logistics-bg.webp" 
+            alt="Portex Logistics High-Speed Highway Network" 
+            className="w-full h-full object-cover object-center opacity-30 transform scale-105 filter blur-[0.3px]"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/90 to-indigo-950/75"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-slate-950/60"></div>
+          <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1.5px,transparent_1.5px)] [background-size:20px_20px]"></div>
+        </div>
 
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 items-center relative z-10">
           {/* Left Hero Pitch */}
@@ -202,110 +211,208 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* OUR SERVICES SECTION */}
+      {/* OUR SERVICES SECTION WITH FLUX.2 PHOTOREALISTIC PREVIEWS */}
       <section className="py-16 px-4 sm:px-8 max-w-7xl mx-auto">
         <div className="text-center max-w-2xl mx-auto mb-12">
-          <span className="text-xs font-bold uppercase tracking-wider text-porter-blue bg-blue-50 px-3 py-1 rounded-full">
+          <span className="text-xs font-bold uppercase tracking-wider text-porter-blue bg-blue-50 px-3.5 py-1.5 rounded-full border border-blue-100">
             Logistics On Demand
           </span>
-          <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mt-2">
-            Our Services
+          <h2 className="text-2xl sm:text-4xl font-black text-gray-900 mt-3">
+            Our Core Logistics Solutions
           </h2>
           <p className="text-sm text-gray-500 mt-2">
             Hassle-free goods transportation and delivery solutions tailored for individual needs and businesses of all sizes.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Card 1: City Mini Trucks */}
           <Link
             to="/trucks-mumbai"
-            className="group bg-white p-6 rounded-2xl border border-gray-200/80 shadow-sm card-hover flex flex-col justify-between"
+            className="group bg-white rounded-3xl border border-gray-200/80 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden"
           >
             <div>
-              <div className="w-14 h-14 rounded-2xl bg-blue-50 text-porter-blue flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
-                <img src="/images/Tata_Ace_5fd23cdaf0.svg" alt="Mini Trucks" className="w-9 h-9 object-contain" />
+              <div className="relative h-44 w-full overflow-hidden bg-slate-900">
+                <img 
+                  src="/images/mini-trucks-fleet.webp" 
+                  alt="City Mini Trucks Fleet" 
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent"></div>
+                <span className="absolute top-3 left-3 text-[11px] font-bold bg-white/90 backdrop-blur-md text-porter-blue px-2.5 py-1 rounded-full shadow-sm">
+                  Tata Ace & Pickups
+                </span>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-1.5">City Mini Trucks</h3>
-              <p className="text-xs text-gray-500 leading-relaxed mb-4">
-                Tata Ace, 3-Wheelers & Pickup 8ft for business transport, furniture moving and bulk merchandise.
-              </p>
-              <div className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md w-fit">
-                Base fare starts at ₹189
+              <div className="p-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-1.5 flex items-center justify-between">
+                  <span>City Mini Trucks</span>
+                  <Truck className="w-5 h-5 text-indigo-600" />
+                </h3>
+                <p className="text-xs text-gray-500 leading-relaxed mb-4">
+                  Tata Ace, 3-Wheelers & Pickup 8ft for business transport, furniture moving and bulk merchandise.
+                </p>
+                <div className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg w-fit border border-emerald-100">
+                  Base fare starts at ₹189
+                </div>
               </div>
             </div>
-            <div className="mt-6 pt-4 border-t border-gray-100 flex items-center justify-between text-xs font-bold text-porter-blue">
-              <span>View Fleet & Rates</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            <div className="px-6 pb-6 pt-2">
+              <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs font-bold text-porter-blue">
+                <span>View Fleet & Rates</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
+              </div>
             </div>
           </Link>
 
           {/* Card 2: 2-Wheeler Instant Courier */}
           <Link
             to="/two-wheelers-mumbai"
-            className="group bg-white p-6 rounded-2xl border border-gray-200/80 shadow-sm card-hover flex flex-col justify-between"
+            className="group bg-white rounded-3xl border border-gray-200/80 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden"
           >
             <div>
-              <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
-                <img src="/images/2_wheeler_5624a12e03_cd20b2a174.svg" alt="2 Wheeler" className="w-9 h-9 object-contain" />
+              <div className="relative h-44 w-full overflow-hidden bg-slate-900">
+                <img 
+                  src="/images/courier-bike-express.webp" 
+                  alt="2-Wheeler Express Courier" 
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent"></div>
+                <span className="absolute top-3 left-3 text-[11px] font-bold bg-white/90 backdrop-blur-md text-emerald-700 px-2.5 py-1 rounded-full shadow-sm">
+                  Instant Hyperlocal
+                </span>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-1.5">Two-Wheelers</h3>
-              <p className="text-xs text-gray-500 leading-relaxed mb-4">
-                Reliable goods transportation services for up to 20 kg. Instant pickup within 15 minutes.
-              </p>
-              <div className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md w-fit">
-                Fares starting at ₹42
+              <div className="p-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-1.5 flex items-center justify-between">
+                  <span>Two-Wheelers</span>
+                  <Bike className="w-5 h-5 text-emerald-600" />
+                </h3>
+                <p className="text-xs text-gray-500 leading-relaxed mb-4">
+                  Reliable goods transportation services for up to 20 kg. Instant pickup within 15 minutes.
+                </p>
+                <div className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg w-fit border border-emerald-100">
+                  Fares starting at ₹42
+                </div>
               </div>
             </div>
-            <div className="mt-6 pt-4 border-t border-gray-100 flex items-center justify-between text-xs font-bold text-porter-blue">
-              <span>Send a Package</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            <div className="px-6 pb-6 pt-2">
+              <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs font-bold text-porter-blue">
+                <span>Send a Package</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
+              </div>
             </div>
           </Link>
 
           {/* Card 3: Packers & Movers */}
           <Link
             to="/packers-and-movers"
-            className="group bg-white p-6 rounded-2xl border border-gray-200/80 shadow-sm card-hover flex flex-col justify-between"
+            className="group bg-white rounded-3xl border border-gray-200/80 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden"
           >
             <div>
-              <div className="w-14 h-14 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
-                <Home className="w-7 h-7 text-purple-600" />
+              <div className="relative h-44 w-full overflow-hidden bg-slate-900">
+                <img 
+                  src="/images/packers-hero.webp" 
+                  alt="Packers & Movers Shifting" 
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent"></div>
+                <span className="absolute top-3 left-3 text-[11px] font-bold bg-white/90 backdrop-blur-md text-purple-700 px-2.5 py-1 rounded-full shadow-sm">
+                  Complete Home Shifting
+                </span>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-1.5">Packers & Movers</h3>
-              <p className="text-xs text-gray-500 leading-relaxed mb-4">
-                House shifting hai? #HoJayega. Safe packing, dismantling, loading, and unpacking for 1, 2, 3 BHK homes.
-              </p>
-              <div className="text-xs font-bold text-purple-600 bg-purple-50 px-2.5 py-1 rounded-md w-fit">
-                Verified moving experts
+              <div className="p-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-1.5 flex items-center justify-between">
+                  <span>Packers & Movers</span>
+                  <Home className="w-5 h-5 text-purple-600" />
+                </h3>
+                <p className="text-xs text-gray-500 leading-relaxed mb-4">
+                  House shifting made effortless. Multi-layer packing, carpenter dismantling, safe transit & room setup.
+                </p>
+                <div className="text-xs font-bold text-purple-700 bg-purple-50 px-2.5 py-1 rounded-lg w-fit border border-purple-100">
+                  Verified moving experts
+                </div>
               </div>
             </div>
-            <div className="mt-6 pt-4 border-t border-gray-100 flex items-center justify-between text-xs font-bold text-porter-blue">
-              <span>Book House Shift</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            <div className="px-6 pb-6 pt-2">
+              <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs font-bold text-porter-blue">
+                <span>Book House Shift</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
+              </div>
             </div>
           </Link>
 
-          {/* Card 4: Porter Enterprise */}
+          {/* Card 4: All-India Parcel */}
           <Link
-            to="/enterprise"
-            className="group bg-white p-6 rounded-2xl border border-gray-200/80 shadow-sm card-hover flex flex-col justify-between"
+            to="/all-india-parcel"
+            className="group bg-white rounded-3xl border border-gray-200/80 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden"
           >
             <div>
-              <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
-                <Briefcase className="w-7 h-7 text-amber-600" />
+              <div className="relative h-44 w-full overflow-hidden bg-slate-900">
+                <img 
+                  src="/images/all-india-logistics.webp" 
+                  alt="All India Parcel Courier" 
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent"></div>
+                <span className="absolute top-3 left-3 text-[11px] font-bold bg-white/90 backdrop-blur-md text-blue-700 px-2.5 py-1 rounded-full shadow-sm">
+                  19,000+ Pincodes
+                </span>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-1.5">{BRANDING.name} Enterprise</h3>
-              <p className="text-xs text-gray-500 leading-relaxed mb-4">
-                Streamline intra-city supply chains and multi-drop delivery routes with centralized corporate billing and APIs.
-              </p>
-              <div className="text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-md w-fit">
-                Corporate Billing & SLA
+              <div className="p-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-1.5 flex items-center justify-between">
+                  <span>All India Parcel</span>
+                  <Package className="w-5 h-5 text-blue-600" />
+                </h3>
+                <p className="text-xs text-gray-500 leading-relaxed mb-4">
+                  Doorstep intercity shipping with surface and priority air cargo. Real-time milestone tracking nationwide.
+                </p>
+                <div className="text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg w-fit border border-blue-100">
+                  Air & Surface Delivery
+                </div>
               </div>
             </div>
-            <div className="mt-6 pt-4 border-t border-gray-100 flex items-center justify-between text-xs font-bold text-porter-blue">
-              <span>Enterprise Logistics</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            <div className="px-6 pb-6 pt-2">
+              <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs font-bold text-porter-blue">
+                <span>Send Intercity Parcel</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
+              </div>
+            </div>
+          </Link>
+
+          {/* Card 5: Portex Enterprise */}
+          <Link
+            to="/enterprise"
+            className="group bg-white rounded-3xl border border-gray-200/80 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden lg:col-span-2"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2">
+              <div className="relative h-44 md:h-full w-full overflow-hidden bg-slate-900">
+                <img 
+                  src="/images/enterprise-logistics.webp" 
+                  alt="Portex Enterprise Logistics" 
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-slate-950/70 via-transparent to-transparent"></div>
+                <span className="absolute top-3 left-3 text-[11px] font-bold bg-white/90 backdrop-blur-md text-amber-700 px-2.5 py-1 rounded-full shadow-sm">
+                  Dedicated Corporate Fleet
+                </span>
+              </div>
+              <div className="p-6 flex flex-col justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-1.5 flex items-center justify-between">
+                    <span>{BRANDING.name} Enterprise</span>
+                    <Briefcase className="w-5 h-5 text-amber-600" />
+                  </h3>
+                  <p className="text-xs text-gray-500 leading-relaxed mb-4">
+                    Streamline intra-city supply chains and multi-drop delivery routes with centralized corporate billing, dedicated SLAs, and API dispatch integrations.
+                  </p>
+                  <div className="text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg w-fit border border-amber-100 mb-4">
+                    Custom Contracts & 30-Day Billing
+                  </div>
+                </div>
+                <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs font-bold text-porter-blue">
+                  <span>Explore Enterprise Solutions</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
+                </div>
+              </div>
             </div>
           </Link>
         </div>
@@ -435,10 +542,17 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* App download card with updated Indigo-Obsidian gradient */}
+          {/* App download card with updated Indigo-Obsidian gradient & Portex App Icon */}
           <div className="bg-gradient-to-br from-slate-950 via-indigo-950 to-indigo-900 rounded-3xl p-8 text-white relative overflow-hidden shadow-2xl border border-indigo-900/50">
             <div className="relative z-10 space-y-5">
-              <span className="text-xs font-bold uppercase tracking-wider text-amber-400">Mobile On-Demand</span>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-400">Mobile On-Demand</span>
+                <img 
+                  src={BRANDING.appIcon} 
+                  alt="Portex Mobile App Icon" 
+                  className="w-14 h-14 rounded-2xl shadow-xl ring-2 ring-indigo-400/40 hover:scale-110 transition-transform" 
+                />
+              </div>
               <h3 className="text-2xl font-black">Ship & Track Cargo with the {BRANDING.name} App</h3>
               <p className="text-xs text-indigo-100 leading-relaxed">
                 Book mini trucks or courier bikes with one tap. Scan the QR code with your smartphone camera to install immediately on Android & iOS.

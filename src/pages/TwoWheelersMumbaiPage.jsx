@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { BRANDING } from '../config/branding';
 import { POPULAR_LOCATIONS, VEHICLES } from '../data/mockData';
 import { 
   Bike, Zap, ShieldCheck, Clock, CheckCircle2, ArrowRight, 
@@ -32,8 +33,18 @@ export default function TwoWheelersMumbaiPage() {
 
   return (
     <div className="min-h-screen bg-[#f8fafc]">
-      {/* 2-WHEELER HERO */}
-      <section className="relative bg-gradient-to-r from-emerald-950 via-emerald-900 to-teal-950 text-white py-14 px-4 sm:px-8 overflow-hidden">
+      {/* 2-WHEELER HERO WITH FLUX.2 PHOTOREALISTIC BACKGROUND */}
+      <section className="relative bg-slate-950 text-white py-14 px-4 sm:px-8 overflow-hidden border-b border-emerald-950/40">
+        <div className="absolute inset-0 pointer-events-none">
+          <img 
+            src="/images/courier-bike-express.webp" 
+            alt="Express Courier Delivery Rider" 
+            className="w-full h-full object-cover object-center opacity-30 transform scale-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/90 to-emerald-950/80"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-slate-950/60"></div>
+        </div>
+
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
           <div className="lg:col-span-7 space-y-5">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-xs font-bold text-emerald-300 border border-emerald-500/30">
@@ -143,7 +154,7 @@ export default function TwoWheelersMumbaiPage() {
             Popular Use Cases
           </span>
           <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mt-2">
-            What Can You Send with Porter 2-Wheeler?
+            What Can You Send with {BRANDING.name} 2-Wheeler?
           </h2>
         </div>
 
@@ -175,7 +186,7 @@ export default function TwoWheelersMumbaiPage() {
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-8">
             <h2 className="text-xl sm:text-2xl font-black text-gray-900">
-              Porter 2-Wheeler vs. Traditional Courier
+              {BRANDING.name} 2-Wheeler vs. Traditional Courier
             </h2>
           </div>
 
@@ -185,7 +196,7 @@ export default function TwoWheelersMumbaiPage() {
                 <span className="w-7 h-7 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-xs">
                   ✓
                 </span>
-                <h4 className="text-sm font-bold text-emerald-950">Porter 2-Wheeler Hyperlocal</h4>
+                <h4 className="text-sm font-bold text-emerald-950">{BRANDING.name} 2-Wheeler Hyperlocal</h4>
               </div>
 
               <ul className="space-y-2 text-xs text-gray-700">

@@ -67,7 +67,7 @@ export default function Footer() {
               <li><Link to="/two-wheelers-mumbai" className="hover:text-white transition">2-Wheeler Instant Parcel</Link></li>
               <li><Link to="/all-india-parcel" className="hover:text-white transition">All India Parcel Courier</Link></li>
               <li><Link to="/packers-and-movers" className="hover:text-white transition">Packers & Movers (Shifting)</Link></li>
-              <li><Link to="/enterprise" className="hover:text-white transition">Porter Enterprise Logistics</Link></li>
+              <li><Link to="/enterprise" className="hover:text-white transition">{BRANDING.name} Enterprise Logistics</Link></li>
             </ul>
           </div>
 

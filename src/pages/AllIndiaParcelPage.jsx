@@ -58,19 +58,28 @@ export default function AllIndiaParcelPage() {
   return (
     <div className="min-h-screen bg-[#f8fafc] py-8 px-4 sm:px-8">
       <div className="max-w-6xl mx-auto space-y-8">
-        {/* Banner with Portex Palette */}
-        <div className="bg-gradient-to-r from-slate-950 via-indigo-950 to-blue-950 rounded-3xl p-8 text-white relative overflow-hidden shadow-xl border border-indigo-900/50">
+        {/* Banner with Portex Palette & FLUX.2 Photorealistic Cargo Background */}
+        <div className="relative rounded-3xl p-8 sm:p-12 text-white overflow-hidden shadow-2xl border border-indigo-900/40 bg-slate-950 min-h-[340px] flex items-center">
+          <div className="absolute inset-0 pointer-events-none">
+            <img 
+              src="/images/all-india-logistics.webp" 
+              alt="Intercity Parcel Air Cargo Fleet" 
+              className="w-full h-full object-cover object-center opacity-30 transform scale-105"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/90 to-indigo-950/80"></div>
+          </div>
+
           <div className="relative z-10 max-w-2xl space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-xs font-bold text-indigo-200">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-xs font-bold text-indigo-200 border border-white/10">
               <Package className="w-3.5 h-3.5 text-amber-400" />
               <span>Doorstep Intercity Courier • 19,000+ Pincodes Serviced</span>
             </div>
 
-            <h1 className="text-3xl sm:text-4xl font-black">
+            <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
               Nationwide Doorstep Parcel Courier
             </h1>
 
-            <p className="text-xs sm:text-sm text-indigo-100 leading-relaxed">
+            <p className="text-xs sm:text-sm text-indigo-100 leading-relaxed max-w-xl">
               Fast, insured intercity shipping covering 19,000+ pincodes. Doorstep pickup with real-time tracking, free packing assistance, and express air delivery across major cities.
             </p>
 

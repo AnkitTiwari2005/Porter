@@ -25,9 +25,19 @@ export default function EnterprisePage() {
 
   return (
     <div className="min-h-screen bg-[#f8fafc]">
-      {/* Enterprise Hero */}
-      <section className="bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950 text-white py-16 px-4 sm:px-8 border-b border-slate-800">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+      {/* Enterprise Hero with FLUX.2 Photorealistic Telemetry Background */}
+      <section className="relative bg-slate-950 text-white py-16 px-4 sm:px-8 border-b border-slate-800 overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <img 
+            src="/images/enterprise-logistics.webp" 
+            alt="Enterprise Logistics Control Center" 
+            className="w-full h-full object-cover object-center opacity-30 transform scale-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-900/95 to-indigo-950/80"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-slate-950/60"></div>
+        </div>
+
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 items-center relative z-10">
           <div className="lg:col-span-7 space-y-5">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-xs font-bold text-blue-300">
               <Briefcase className="w-3.5 h-3.5 text-blue-400" />
@@ -74,7 +84,7 @@ export default function EnterprisePage() {
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
-                    <h3 className="text-base font-black text-slate-900">Partner with Porter Enterprise</h3>
+                    <h3 className="text-base font-black text-slate-900">Partner with {BRANDING.name} Enterprise</h3>
                     <p className="text-xs text-slate-500">Get customized corporate rates & monthly billing</p>
                   </div>
 
@@ -199,7 +209,7 @@ export default function EnterprisePage() {
             </div>
             <h4 className="text-base font-bold text-gray-900">Direct REST API Integrations</h4>
             <p className="text-xs text-gray-500 leading-relaxed">
-              Integrate Porter dispatches directly into your Shopify, WooCommerce, ERP, or custom warehouse management system.
+              Integrate {BRANDING.name} dispatches directly into your Shopify, WooCommerce, ERP, or custom warehouse management system.
             </p>
           </div>
 

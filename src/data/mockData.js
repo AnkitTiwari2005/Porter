@@ -186,7 +186,7 @@ export const TESTIMONIALS = [
     company: 'Apex Electronics, Mumbai',
     role: 'Business Owner',
     rating: 5,
-    quote: 'Porter has been our reliable logistics partner for 3+ years. Whenever our store needs quick stock movement across Mumbai, a Tata Ace arrives in under 15 minutes!',
+    quote: 'Portex has been our reliable logistics partner for 3+ years. Whenever our store needs quick stock movement across Mumbai, a Tata Ace arrives in under 15 minutes!',
     vehicle: 'Tata Ace'
   },
   {
@@ -211,12 +211,12 @@ export const TESTIMONIALS = [
 
 export const FAQS = [
   {
-    question: 'How do I book a mini truck or bike on Porter?',
+    question: 'How do I book a mini truck or bike on Portex?',
     answer: 'Enter your pickup and drop location, choose your preferred vehicle (Bike, 3-Wheeler, Tata Ace, or 8ft Truck), review the upfront fare estimate, and hit "Book Now". A driver partner will be assigned in seconds!'
   },
   {
     question: 'Are there any hidden charges or toll fees?',
-    answer: 'Porter provides transparent pricing. Your fare estimate covers base fare and distance charges. State taxes, parking, and highway tolls (if any) are billed directly based on actuals.'
+    answer: 'Portex provides transparent pricing. Your fare estimate covers base fare and distance charges. State taxes, parking, and highway tolls (if any) are billed directly based on actuals.'
   },
   {
     question: 'Can I track my goods and driver in real time?',
@@ -224,10 +224,10 @@ export const FAQS = [
   },
   {
     question: 'Do driver partners help with loading and unloading?',
-    answer: 'Drivers assist with ground-to-ground loading/unloading. For multi-floor carrying or heavy lifting, Porter offers dedicated Helper assistance options during booking.'
+    answer: 'Drivers assist with ground-to-ground loading/unloading. For multi-floor carrying or heavy lifting, Portex offers dedicated Helper assistance options during booking.'
   },
   {
-    question: 'What items can I send through Porter 2-Wheeler?',
+    question: 'What items can I send through Portex 2-Wheeler?',
     answer: 'You can send legal goods up to 20 kg including documents, keys, chargers, lunch boxes, clothes, electronic accessories, medical supplies, and retail parcels.'
   }
 ];

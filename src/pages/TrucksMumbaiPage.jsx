@@ -32,8 +32,18 @@ export default function TrucksMumbaiPage() {
 
   return (
     <div className="min-h-screen bg-[#f8fafc]">
-      {/* MUMBAI HERO */}
-      <section className="relative bg-gradient-to-r from-slate-950 via-indigo-950 to-blue-950 text-white py-14 px-4 sm:px-8 overflow-hidden border-b border-indigo-900/40">
+      {/* MUMBAI HERO WITH FLUX.2 PHOTOREALISTIC BACKGROUND */}
+      <section className="relative bg-slate-950 text-white py-14 px-4 sm:px-8 overflow-hidden border-b border-indigo-900/40">
+        <div className="absolute inset-0 pointer-events-none">
+          <img 
+            src="/images/mini-trucks-fleet.webp" 
+            alt="Commercial Mini Trucks Fleet" 
+            className="w-full h-full object-cover object-center opacity-30 transform scale-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/90 to-indigo-950/80"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-slate-950/60"></div>
+        </div>
+
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
           <div className="lg:col-span-7 space-y-5">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-xs font-bold text-indigo-200">

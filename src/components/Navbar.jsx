@@ -28,7 +28,7 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 w-full bg-white shadow-sm border-b border-gray-100">
-      {/* Top Black Corporate Bar (Original Porter Header Strip) */}
+      {/* Top Corporate Header Strip */}
       <div className="bg-[#000000] text-gray-300 text-xs py-2 px-4 sm:px-8 border-b border-gray-800">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -64,7 +64,7 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Main Porter Header Bar */}
+      {/* Main Portex Header Bar */}
       <div className="max-w-7xl mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4">
         {/* Brand Logo & City Selector */}
         <div className="flex items-center gap-6">
@@ -164,7 +164,7 @@ export default function Navbar() {
                     onClick={() => setServicesDropdownOpen(false)}
                     className="block px-4 py-1.5 text-xs text-gray-600 hover:text-porter-blue hover:bg-gray-50 font-medium"
                   >
-                    Porter Enterprise (B2B Solutions)
+                    {BRANDING.name} Enterprise (B2B Solutions)
                   </Link>
                 </div>
               </div>
@@ -264,7 +264,7 @@ export default function Navbar() {
             <Link to="/two-wheelers-mumbai" onClick={() => setMobileMenuOpen(false)} className="block py-1 text-gray-800">Two-Wheelers (Courier)</Link>
             <Link to="/packers-and-movers" onClick={() => setMobileMenuOpen(false)} className="block py-1 text-gray-800">Packers & Movers (Shifting)</Link>
             <Link to="/all-india-parcel" onClick={() => setMobileMenuOpen(false)} className="block py-1 text-gray-800">All India Intercity Parcel</Link>
-            <Link to="/enterprise" onClick={() => setMobileMenuOpen(false)} className="block py-1 text-gray-800">Porter Enterprise (B2B)</Link>
+            <Link to="/enterprise" onClick={() => setMobileMenuOpen(false)} className="block py-1 text-gray-800">{BRANDING.name} Enterprise (B2B)</Link>
             <Link to="/admin" onClick={() => setMobileMenuOpen(false)} className="block py-1 text-blue-600 font-bold">Admin Dispatch Console</Link>
             <Link to="/driver" onClick={() => setMobileMenuOpen(false)} className="block py-1 text-emerald-600 font-bold">Driver Partner Portal</Link>
             <button

@@ -47,7 +47,7 @@ export default function AdminDashboardPage() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Porter_Dispatch_Report_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `${BRANDING.name}_Dispatch_Report_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

@@ -311,7 +311,7 @@ export default function FareEstimatePage() {
                 </div>
               </div>
 
-              {/* Porter Helper Assistance Option */}
+              {/* Portex Helper Assistance Option */}
               {selectedVehicle.category === 'truck' && (
                 <div className="pt-2 border-t border-gray-100">
                   <div className="flex items-center justify-between mb-2">
