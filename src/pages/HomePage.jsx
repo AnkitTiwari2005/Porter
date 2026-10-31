@@ -52,41 +52,31 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-[#f8fafc]">
-      {/* HERO SECTION WITH DYNAMIC VIDEO/PHOTO BACKGROUND & RADIANT EFFECTS */}
+      {/* HERO SECTION WITH SOLE USER VIDEO BACKGROUND */}
       <section className="relative bg-[#070b14] text-white overflow-hidden py-14 md:py-24 px-4 sm:px-8 border-b border-indigo-900/30">
-        {/* Layer 1: Looping Video + Photorealistic Fallback Image */}
+        {/* Layer 1: Strictly User's Looping Video */}
         <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
-          {/* Looping ambient highway video */}
           <video
             autoPlay
             loop
             muted
             playsInline
-            poster="/images/hero-logistics-bg.webp"
-            className="absolute inset-0 w-full h-full object-cover object-center transform scale-105 filter brightness-90 contrast-110 animate-slow-zoom opacity-50"
+            className="absolute inset-0 w-full h-full object-cover object-center transform scale-105 filter brightness-95 contrast-105 opacity-65"
           >
             <source src="/videos/hero-traffic.webm" type="video/webm" />
-            <source src="/videos/hero-traffic.mp4" type="video/mp4" />
           </video>
 
-          {/* High-detail FLUX fallback photo backing */}
-          <img 
-            src="/images/hero-logistics-bg.webp" 
-            alt="Portex Logistics High-Speed Highway Network" 
-            className="absolute inset-0 w-full h-full object-cover object-center opacity-30 mix-blend-screen pointer-events-none"
-          />
-
           {/* Radiant Ambient Color Orbs */}
-          <div className="absolute -top-32 -left-32 w-[520px] h-[520px] rounded-full bg-indigo-600/30 blur-[130px] animate-ambient-glow pointer-events-none"></div>
-          <div className="absolute top-1/3 left-1/4 w-[420px] h-[420px] rounded-full bg-amber-500/15 blur-[120px] pointer-events-none"></div>
-          <div className="absolute -bottom-24 right-1/4 w-[480px] h-[480px] rounded-full bg-blue-500/25 blur-[140px] pointer-events-none"></div>
+          <div className="absolute -top-32 -left-32 w-[520px] h-[520px] rounded-full bg-indigo-600/25 blur-[130px] animate-ambient-glow pointer-events-none"></div>
+          <div className="absolute top-1/3 left-1/4 w-[420px] h-[420px] rounded-full bg-amber-500/10 blur-[120px] pointer-events-none"></div>
+          <div className="absolute -bottom-24 right-1/4 w-[480px] h-[480px] rounded-full bg-blue-500/20 blur-[140px] pointer-events-none"></div>
 
-          {/* Precision Digital Tech Grid Overlay */}
-          <div className="absolute inset-0 opacity-[0.14] bg-[linear-gradient(to_right,#818cf8_1px,transparent_1px),linear-gradient(to_bottom,#818cf8_1px,transparent_1px)] [background-size:40px_40px] pointer-events-none"></div>
+          {/* Subtle Digital Tech Grid Overlay */}
+          <div className="absolute inset-0 opacity-[0.10] bg-[linear-gradient(to_right,#818cf8_1px,transparent_1px),linear-gradient(to_bottom,#818cf8_1px,transparent_1px)] [background-size:40px_40px] pointer-events-none"></div>
 
-          {/* Multi-angle cinematic gradient masks */}
-          <div className="absolute inset-0 bg-gradient-to-r from-[#070b14]/95 via-[#070b14]/75 to-[#070b14]/40 pointer-events-none"></div>
-          <div className="absolute inset-0 bg-gradient-to-t from-[#070b14] via-transparent to-[#070b14]/60 pointer-events-none"></div>
+          {/* Cinematic gradient masks for text readability */}
+          <div className="absolute inset-0 bg-gradient-to-r from-[#070b14]/90 via-[#070b14]/65 to-[#070b14]/30 pointer-events-none"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-[#070b14] via-transparent to-[#070b14]/50 pointer-events-none"></div>
         </div>
 
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center relative z-10">
