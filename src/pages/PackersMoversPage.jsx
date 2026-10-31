@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { BRANDING } from '../config/branding';
 import { POPULAR_LOCATIONS } from '../data/mockData';
 import { 
   Home, CheckCircle2, ShieldCheck, Calendar, ArrowRight, 
@@ -78,7 +79,7 @@ export default function PackersMoversPage() {
           <div className="relative z-10 max-w-2xl space-y-4">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-xs font-bold text-purple-200">
               <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
-              <span>Porter Verified House Shifting Specialists</span>
+              <span>{BRANDING.name} Verified House Shifting Specialists</span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-black">
               House Shifting Hai? <br />

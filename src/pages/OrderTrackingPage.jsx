@@ -91,7 +91,7 @@ export default function OrderTrackingPage() {
                 </span>
               </div>
               <p className="text-xs text-gray-500">
-                Booked via Porter Logistics • {order.vehicleName}
+                Booked via {BRANDING.name} Logistics • {order.vehicleName}
               </p>
             </div>
           </div>

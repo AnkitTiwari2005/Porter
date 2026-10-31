@@ -31,7 +31,7 @@ export default function EnterprisePage() {
           <div className="lg:col-span-7 space-y-5">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-xs font-bold text-blue-300">
               <Briefcase className="w-3.5 h-3.5 text-blue-400" />
-              <span>Porter Enterprise Logistics Solutions</span>
+              <span>{BRANDING.name} Enterprise Logistics Solutions</span>
             </div>
 
             <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">

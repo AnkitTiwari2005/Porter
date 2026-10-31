@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import { BRANDING } from '../config/branding';
 
 // Create custom SVG markers so we don't depend on external PNG files
 const createCustomIcon = (bgColor, label, isTruck = false) => {
@@ -143,7 +144,7 @@ export default function InteractiveMap({
           <Marker position={vehicleCoord} icon={truckIcon}>
             <Popup>
               <div className="text-xs">
-                <strong className="text-porter-blue">Porter Fleet Partner</strong>
+                <strong className="text-porter-blue">{BRANDING.name} Fleet Partner</strong>
                 <p>Telemetry: Active (Speed ~32 km/h)</p>
               </div>
             </Popup>

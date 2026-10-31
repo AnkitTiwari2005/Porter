@@ -295,7 +295,7 @@ export default function HomePage() {
               <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
                 <Briefcase className="w-7 h-7 text-amber-600" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-1.5">Porter Enterprise</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-1.5">{BRANDING.name} Enterprise</h3>
               <p className="text-xs text-gray-500 leading-relaxed mb-4">
                 Streamline intra-city supply chains and multi-drop delivery routes with centralized corporate billing and APIs.
               </p>
@@ -393,7 +393,7 @@ export default function HomePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
           <div>
             <span className="text-xs font-bold uppercase tracking-wider text-porter-blue bg-blue-50 px-3 py-1 rounded-full">
-              Why Choose Porter
+              Why Choose {BRANDING.name}
             </span>
             <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mt-3 leading-snug">
               Smart, Transparent & Reliable Logistics Across India
@@ -439,7 +439,7 @@ export default function HomePage() {
           <div className="bg-gradient-to-br from-porter-navy to-porter-blue rounded-3xl p-8 text-white relative overflow-hidden shadow-2xl">
             <div className="relative z-10 space-y-5">
               <span className="text-xs font-bold uppercase tracking-wider text-blue-200">Mobile App</span>
-              <h3 className="text-2xl font-black">Get the Porter App for Instant 1-Tap Booking</h3>
+              <h3 className="text-2xl font-black">Get the {BRANDING.name} App for Instant 1-Tap Booking</h3>
               <p className="text-xs text-blue-100 leading-relaxed">
                 Scan the QR code with your phone camera or download directly from Google Play Store or Apple App Store.
               </p>

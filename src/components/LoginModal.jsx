@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { BRANDING } from '../config/branding';
 import { X, Smartphone, ShieldCheck, ArrowRight, CheckCircle2 } from 'lucide-react';
 
 export default function LoginModal() {
@@ -62,7 +63,7 @@ export default function LoginModal() {
           <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center mb-3 backdrop-blur-md">
             <Smartphone className="w-6 h-6 text-white" />
           </div>
-          <h3 className="text-xl font-bold">Welcome to Porter</h3>
+          <h3 className="text-xl font-bold">Welcome to {BRANDING.name}</h3>
           <p className="text-xs text-blue-100 mt-1">Book mini trucks, 2-wheelers & track orders seamlessly</p>
         </div>
 
