@@ -63,8 +63,9 @@ export default function HomePage() {
             muted
             playsInline
             poster="/images/hero-logistics-bg.webp"
-            className="absolute inset-0 w-full h-full object-cover object-center transform scale-105 filter brightness-90 contrast-110 animate-slow-zoom opacity-45"
+            className="absolute inset-0 w-full h-full object-cover object-center transform scale-105 filter brightness-90 contrast-110 animate-slow-zoom opacity-50"
           >
+            <source src="/videos/hero-traffic.webm" type="video/webm" />
             <source src="/videos/hero-traffic.mp4" type="video/mp4" />
           </video>
 
