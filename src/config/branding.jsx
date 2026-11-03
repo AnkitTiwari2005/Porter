@@ -8,8 +8,8 @@ export const BRANDING = {
   hashtag: '#MoveForward',
   deliveryAapki: 'Aapka Saman, Hamari Zimmedari',
   legalName: 'Portex Freight Technologies Pvt. Ltd.',
-  logo: '/images/portex-logo.png',
-  logoWhite: '/images/portex-logo-white.png',
+  logo: '/images/portex-emblem.png',
+  logoWhite: '/images/portex-emblem.png',
   emblem: '/images/portex-emblem.png',
   appIcon: '/images/portex-emblem.png',
   appIconPng: '/images/portex-app-icon.png',
@@ -30,37 +30,25 @@ export const BRANDING = {
   }
 };
 
-export function BrandLogo({ className = "h-8 w-auto", dark = false }) {
-  if (dark) {
-    return (
-      <div className={`flex items-center gap-2.5 select-none shrink-0 ${className}`}>
-        <img 
-          src="/images/portex-emblem.png" 
-          alt="Portex Emblem" 
-          className="w-8 h-8 rounded-lg object-contain shrink-0" 
-        />
-        <div className="flex flex-col justify-center">
-          <div className="flex items-baseline leading-none">
-            <span className="text-xl sm:text-2xl font-black tracking-tight font-sans text-white">
-              port<span className="text-blue-500">ex</span>
-            </span>
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 ml-0.5 inline-block"></span>
-          </div>
-          <span className="text-[8px] font-bold tracking-widest text-slate-400 uppercase mt-0.5">
-            HIGH-SPEED FREIGHT & DELIVERY
-          </span>
-        </div>
-      </div>
-    );
-  }
-
+export function BrandLogo({ className = "", dark = false }) {
   return (
-    <div className={`flex items-center select-none shrink-0 ${className}`}>
+    <div className={`flex items-center gap-2.5 select-none shrink-0 ${className}`}>
       <img 
-        src="/images/portex-logo.png" 
-        alt="Portex - High-Speed Freight & Delivery" 
-        className="h-7 sm:h-9 w-auto object-contain shrink-0" 
+        src="/images/portex-emblem.png" 
+        alt="Portex Emblem" 
+        className="h-8 sm:h-9 w-auto object-contain shrink-0 drop-shadow-sm" 
       />
+      <div className="flex flex-col justify-center">
+        <div className="flex items-baseline leading-none">
+          <span className={`text-xl sm:text-2xl font-black tracking-tight font-sans ${dark ? 'text-white' : 'text-slate-900'}`}>
+            port<span className="text-porter-blue">ex</span>
+          </span>
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 ml-0.5 inline-block"></span>
+        </div>
+        <span className={`text-[8px] font-bold tracking-widest uppercase mt-0.5 ${dark ? 'text-slate-400' : 'text-slate-500'}`}>
+          HIGH-SPEED FREIGHT & DELIVERY
+        </span>
+      </div>
     </div>
   );
 }
@@ -70,7 +58,7 @@ export function BrandEmblem({ className = "w-8 h-8" }) {
     <img 
       src="/images/portex-emblem.png" 
       alt="Portex Emblem" 
-      className={`object-contain shrink-0 ${className}`} 
+      className={`object-contain shrink-0 drop-shadow-sm ${className}`} 
     />
   );
 }
