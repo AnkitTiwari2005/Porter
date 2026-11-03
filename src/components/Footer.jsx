@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { BRANDING, LoadPulseLogo } from '../config/branding';
-import { Truck, ShieldCheck, Headphones, Heart } from 'lucide-react';
+import { Truck, ShieldCheck, Headphones } from 'lucide-react';
 
 export default function Footer() {
   return (
@@ -43,8 +43,8 @@ export default function Footer() {
 
       {/* Main footer navigation */}
       <div className="max-w-7xl mx-auto px-4 sm:px-8 py-12">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
-          <div className="col-span-2 space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-8">
+          <div className="col-span-1 sm:col-span-2 space-y-4">
             <LoadPulseLogo dark={true} />
             <p className="text-xs text-slate-400 leading-relaxed pr-6">
               {BRANDING.name} is a high-speed logistics and freight automation platform powering intra-city goods movement, retail distribution, and heavy transport across India.
@@ -80,11 +80,28 @@ export default function Footer() {
           </div>
 
           <div>
-            <h5 className="text-xs font-bold uppercase tracking-wider text-white mb-4">Contact & Hub</h5>
+            <h5 className="text-xs font-bold uppercase tracking-wider text-white mb-4">Contact & Head Office</h5>
             <ul className="space-y-2.5 text-xs">
-              <li>Email: {BRANDING.supportEmail}</li>
-              <li>Helpline: {BRANDING.supportPhone}</li>
-              <li>Operations: Mumbai, Pune, Delhi NCR, Bangalore</li>
+              <li>
+                <span className="text-slate-500 block">Registered Office:</span>
+                <span className="text-slate-300 font-medium leading-relaxed block">{BRANDING.address}</span>
+              </li>
+              <li>
+                <span className="text-slate-500 block">Proprietor / Contact:</span>
+                <span className="text-white font-semibold">{BRANDING.ownerName}</span>
+              </li>
+              <li>
+                <span className="text-slate-500 block">Direct Email:</span>
+                <a href={`mailto:${BRANDING.supportEmail}`} className="text-indigo-400 hover:text-indigo-300 underline font-medium">
+                  {BRANDING.supportEmail}
+                </a>
+              </li>
+              <li>
+                <span className="text-slate-500 block">Helpline & WhatsApp:</span>
+                <a href={`tel:${BRANDING.supportPhone}`} className="text-indigo-400 hover:text-indigo-300 underline font-medium">
+                  {BRANDING.supportPhone}
+                </a>
+              </li>
             </ul>
           </div>
         </div>
