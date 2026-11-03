@@ -4,6 +4,12 @@ import { BRANDING } from '../config/branding';
 import { X, Smartphone, ShieldCheck, ArrowRight, CheckCircle2 } from 'lucide-react';
 
 export default function LoginModal() {
+  const close = () => { setIsLoginModalOpen(false); setStep('phone'); setOtp(['', '', '', '']); setError(''); };
+  React.useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   const { isLoginModalOpen, setIsLoginModalOpen, loginUser } = useApp();
   const [step, setStep] = useState('phone'); // 'phone' | 'otp'
   const [phone, setPhone] = useState('');
@@ -15,7 +21,11 @@ export default function LoginModal() {
 
   const handleSendOtp = (e) => {
     e.preventDefault();
-    if (!phone || phone.length < 10) {
+    if (!name.trim()) {
+      setError('Please enter your name');
+      return;
+    }
+    if (!/^[6-9]\d{9}$/.test(phone)) {
       setError('Please enter a valid 10-digit mobile number');
       return;
     }
@@ -23,7 +33,27 @@ export default function LoginModal() {
     setStep('otp');
   };
 
+  const handleOtpPaste = (e) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 4);
+    if (!pasted) return;
+    const nextOtp = ['', '', '', ''];
+    for (let i = 0; i < pasted.length; i++) nextOtp[i] = pasted[i];
+    setOtp(nextOtp);
+    const focusIdx = Math.min(3, pasted.length);
+    const el = document.getElementById(`otp-box-${focusIdx}`);
+    if (el) el.focus();
+  };
+
+  const handleOtpKeyDown = (index, e) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      const prev = document.getElementById(`otp-box-${index - 1}`);
+      if (prev) prev.focus();
+    }
+  };
+
   const handleOtpChange = (index, val) => {
+    val = val.replace(/\D/g, '');
     if (val.length > 1) val = val.slice(-1);
     const newOtp = [...otp];
     newOtp[index] = val;
@@ -43,19 +73,21 @@ export default function LoginModal() {
       setError('Please enter complete 4-digit OTP');
       return;
     }
-    loginUser(name || 'Ankit Sharma', phone);
+    loginUser(name.trim(), phone);
+    setName('');
+    setError('');
     setStep('phone');
     setPhone('');
     setOtp(['', '', '', '']);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+    <div role="dialog" aria-modal="true" onClick={(e) => e.target === e.currentTarget && close()} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
       <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-gray-100">
         {/* Header */}
         <div className="relative bg-gradient-to-br from-porter-navy to-porter-blue text-white p-6 pb-8">
           <button
-            onClick={() => setIsLoginModalOpen(false)}
+            onClick={close}
             className="absolute top-4 right-4 p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition"
           >
             <X className="w-5 h-5" />

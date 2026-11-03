@@ -35,6 +35,30 @@ const dropIcon = createCustomIcon('#f43f5e', 'D');
 const stopIcon = createCustomIcon('#f59e0b', 'S');
 const truckIcon = createCustomIcon('#4338ca', '🚚', true);
 
+// Point at fraction t (0..1) of the way along a polyline, by length.
+function pointAlong(points, t) {
+  const seg = [];
+  let total = 0;
+  for (let i = 1; i < points.length; i++) {
+    const d = Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]);
+    seg.push(d);
+    total += d;
+  }
+  if (total === 0) return points[0];
+  let remaining = Math.min(Math.max(t, 0), 1) * total;
+  for (let i = 0; i < seg.length; i++) {
+    if (remaining <= seg[i] || i === seg.length - 1) {
+      const f = seg[i] === 0 ? 0 : remaining / seg[i];
+      return [
+        points[i][0] + (points[i + 1][0] - points[i][0]) * f,
+        points[i][1] + (points[i + 1][1] - points[i][1]) * f
+      ];
+    }
+    remaining -= seg[i];
+  }
+  return points[points.length - 1];
+}
+
 // Component to dynamically fit bounds of both points
 function MapBoundsUpdater({ points }) {
   const map = useMap();
@@ -59,13 +83,6 @@ export default function InteractiveMap({
   height = '360px',
   onMarkerDrag
 }) {
-  // Interpolate vehicle position along the route for real-time simulation
-  const vehicleCoord = useMemo(() => {
-    const lat = pickupCoord[0] + (dropCoord[0] - pickupCoord[0]) * vehicleProgress;
-    const lng = pickupCoord[1] + (dropCoord[1] - pickupCoord[1]) * vehicleProgress;
-    return [lat, lng];
-  }, [pickupCoord, dropCoord, vehicleProgress]);
-
   // Intermediate simulated route points to give a road curve look
   const routePoints = useMemo(() => {
     if (stopCoord) {
@@ -80,12 +97,15 @@ export default function InteractiveMap({
     ];
   }, [pickupCoord, dropCoord, stopCoord]);
 
+  // The vehicle follows the drawn route instead of cutting across it.
+  const vehicleCoord = useMemo(() => pointAlong(routePoints, vehicleProgress), [routePoints, vehicleProgress]);
+
   const allPoints = useMemo(() => {
     return stopCoord ? [pickupCoord, stopCoord, dropCoord] : [pickupCoord, dropCoord];
   }, [pickupCoord, dropCoord, stopCoord]);
 
   return (
-    <div style={{ height }} className="w-full relative rounded-2xl overflow-hidden border border-gray-200 shadow-inner">
+    <div style={{ height }} className="w-full relative isolate rounded-2xl overflow-hidden border border-gray-200 shadow-inner">
       <MapContainer
         center={pickupCoord}
         zoom={12}

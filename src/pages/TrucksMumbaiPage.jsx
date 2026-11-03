@@ -17,6 +17,7 @@ export default function TrucksMumbaiPage() {
   const [selectedTruck, setSelectedTruck] = useState('tata-ace');
 
   const trucksList = VEHICLES.filter(v => v.category === 'truck');
+  const shortName = (n) => n.replace(/\s*\(.*\)$/, '');
 
   const handleBookTruck = (e) => {
     e.preventDefault();
@@ -25,7 +26,8 @@ export default function TrucksMumbaiPage() {
       state: {
         pickup: `${pickup}, Mumbai`,
         drop: `${drop}, Mumbai`,
-        category: 'truck'
+        category: 'truck',
+        selectedVehicleId: selectedTruck
       }
     });
   };
@@ -56,7 +58,7 @@ export default function TrucksMumbaiPage() {
             </h1>
 
             <p className="text-sm sm:text-base text-indigo-100 max-w-xl leading-relaxed">
-              Book Tata Ace, 3-Wheelers & Pickup 8ft starting at ₹189. Verified fleet partners for manufacturing supplies, wholesale goods, and bulk deliveries across Mumbai, Thane & Navi Mumbai.
+              Book Tata Ace, 3-Wheelers & Pickup 8ft starting at ₹{fleetTariffs.find(v => v.category === 'truck')?.basePrice || 189}. Verified fleet partners for manufacturing supplies, wholesale goods, and bulk deliveries across Mumbai, Thane & Navi Mumbai.
             </p>
 
             <div className="flex flex-wrap gap-4 pt-2">
@@ -128,7 +130,7 @@ export default function TrucksMumbaiPage() {
                             : 'border-gray-200 bg-gray-50 text-gray-700 text-xs font-medium'
                         }`}
                       >
-                        <span className="block text-xs truncate">{t.name.split(' ')[0]}</span>
+                        <span className="block text-xs truncate">{shortName(t.name)}</span>
                         <span className="text-[10px] text-gray-400">from ₹{t.basePrice}</span>
                       </button>
                     ))}
@@ -208,7 +210,7 @@ export default function TrucksMumbaiPage() {
                   }}
                   className="w-full py-2.5 bg-porter-blue hover:bg-porter-hover text-white text-xs font-bold rounded-xl transition"
                 >
-                  Book {truck.name.split(' ')[0]}
+                  Book {shortName(truck.name)}
                 </button>
               </div>
             </div>

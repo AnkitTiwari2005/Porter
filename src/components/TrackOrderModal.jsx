@@ -5,12 +5,22 @@ import { X, Search, Phone, ShieldCheck, MapPin, Navigation, Clock, CheckCircle, 
 import { Link } from 'react-router-dom';
 
 export default function TrackOrderModal() {
+  React.useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') setIsTrackModalOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   const { isTrackModalOpen, setIsTrackModalOpen, activeBookings, activeTrackingOrderId, setActiveTrackingOrderId } = useApp();
   const [searchId, setSearchId] = useState('');
 
   if (!isTrackModalOpen) return null;
 
-  const currentOrder = activeBookings.find(b => b.orderId === (searchId.trim().toUpperCase() || activeTrackingOrderId)) || activeBookings[0];
+  const query = searchId.trim().toUpperCase();
+  const normalized = /^\d+$/.test(query) ? `PRT-${query}` : query;
+  // A typed ID that matches nothing must show "not found", never silently fall back to another order.
+  const currentOrder = normalized
+    ? activeBookings.find(b => b.orderId === normalized)
+    : (activeBookings.find(b => b.orderId === activeTrackingOrderId) || activeBookings[0]);
 
   const getStatusBadge = (status) => {
     switch(status) {
@@ -20,6 +30,8 @@ export default function TrackOrderModal() {
         return { label: 'Driver Assigned', color: 'bg-blue-100 text-porter-blue border-blue-200' };
       case 'in_transit':
         return { label: 'Out for Delivery / In Transit', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
+      case 'cancelled':
+        return { label: 'Cancelled', color: 'bg-rose-100 text-rose-800 border-rose-200' };
       case 'delivered':
         return { label: 'Delivered', color: 'bg-gray-100 text-gray-800 border-gray-200' };
       default:
@@ -28,7 +40,7 @@ export default function TrackOrderModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+    <div role="dialog" aria-modal="true" onClick={(e) => e.target === e.currentTarget && setIsTrackModalOpen(false)} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
       <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden border border-gray-100 flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/80">
@@ -96,7 +108,7 @@ export default function TrackOrderModal() {
                 </div>
                 <p className="text-xs text-gray-500 mt-1 flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-gray-400" />
-                  Estimated Arrival: <span className="font-semibold text-gray-700">18 mins</span> ({currentOrder.distance})
+                  Estimated Arrival: <span className="font-semibold text-gray-700">{currentOrder.status === 'delivered' || currentOrder.status === 'cancelled' ? '—' : `${Math.max(2, Math.round((1 - (currentOrder.progress || 0) / 100) * 20))} mins`}</span> ({currentOrder.distance})
                 </p>
               </div>
 

@@ -1,3 +1,5 @@
+import { POPULAR_LOCATIONS } from './mockData';
+
 // Coordinates database for Indian cities and key local areas
 export const CITY_COORDINATES = {
   mumbai: {
@@ -140,6 +142,22 @@ export const CITY_COORDINATES = {
       'Bhanwarkua': [22.6920, 75.8670]
     }
   },
+  coimbatore: {
+    center: [11.0168, 76.9558],
+    locations: {
+      'RS Puram': [11.0070, 76.9500],
+      'Gandhipuram': [11.0183, 76.9725],
+      'Peelamedu': [11.0230, 77.0200]
+    }
+  },
+  nagpur: {
+    center: [21.1458, 79.0882],
+    locations: {
+      'Sitabuldi': [21.1400, 79.0830],
+      'Dharampeth': [21.1350, 79.0650],
+      'Manish Nagar': [21.0900, 79.0700]
+    }
+  },
   kochi: {
     center: [9.9312, 76.2673],
     locations: {
@@ -170,20 +188,31 @@ export function calculateGeoDistance(coord1, coord2) {
   return Math.max(1.5, Number(roadDistance.toFixed(1)));
 }
 
-// Find closest coordinates for any input text
+// Suggestion list for a city: curated hubs if present, else derived from the coordinate table.
+export function getCityLocations(cityId) {
+  if (POPULAR_LOCATIONS[cityId]) return POPULAR_LOCATIONS[cityId];
+  const city = CITY_COORDINATES[cityId];
+  if (!city) return [];
+  return Object.entries(city.locations).map(([name, [lat, lng]]) => ({ name, area: name, lat, lng }));
+}
+
+const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+// Deterministic lookup: GPS text -> curated hub -> coordinate table -> city centre.
+// (No random jitter: the same input always gives the same pin.)
 export function getCoordinatesForAddress(addressText, cityId = 'mumbai') {
-  const cityData = CITY_COORDINATES[cityId] || CITY_COORDINATES['mumbai'];
-  if (!addressText) return cityData.center;
+  const city = CITY_COORDINATES[cityId] || CITY_COORDINATES.mumbai;
+  if (!addressText) return city.center;
 
-  for (const [key, coords] of Object.entries(cityData.locations)) {
-    if (addressText.toLowerCase().includes(key.toLowerCase())) {
-      return coords;
-    }
+  const gps = /\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)/.exec(addressText);
+  if (gps) return [parseFloat(gps[1]), parseFloat(gps[2])];
+
+  const text = norm(addressText);
+  for (const loc of getCityLocations(cityId)) {
+    if (text.includes(norm(loc.name))) return [loc.lat, loc.lng];
   }
-
-  // Slightly jitter from center to give dynamic unique coordinates
-  const hash = addressText.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const latOffset = ((hash % 100) - 50) * 0.0012;
-  const lngOffset = (((hash * 3) % 100) - 50) * 0.0014;
-  return [cityData.center[0] + latOffset, cityData.center[1] + lngOffset];
+  for (const [key, coords] of Object.entries(city.locations)) {
+    if (text.includes(norm(key))) return coords;
+  }
+  return city.center;
 }

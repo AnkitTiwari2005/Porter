@@ -10,18 +10,21 @@ import {
 } from 'lucide-react';
 
 export default function AdminDashboardPage() {
-  const { activeBookings, selectedCity, fleetTariffs, updateTariff, updateBookingStatus } = useApp();
+  const { activeBookings, selectedCity, fleetTariffs, updateTariff, resetTariffs, updateBookingStatus } = useApp();
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   // Compute stats
-  const totalRevenue = activeBookings.reduce((sum, b) => sum + (b.fare || 0), 14250);
+  const todayStr = new Date().toDateString();
+  const totalRevenue = activeBookings
+    .filter(b => b.status !== 'cancelled' && new Date(b.createdAt).toDateString() === todayStr)
+    .reduce((sum, b) => sum + (b.fare || 0), 0);
   const activeTripsCount = activeBookings.filter(b => b.status === 'in_transit' || b.status === 'assigned').length;
 
   const currentLiveOrder = activeBookings.find(b => b.status === 'in_transit' || b.status === 'assigned') || activeBookings[0];
-  const livePickupCoord = currentLiveOrder ? getCoordinatesForAddress(currentLiveOrder.pickup) : undefined;
-  const liveDropCoord = currentLiveOrder ? getCoordinatesForAddress(currentLiveOrder.drop) : undefined;
+  const livePickupCoord = currentLiveOrder ? (currentLiveOrder.pickupCoord || getCoordinatesForAddress(currentLiveOrder.pickup, currentLiveOrder.cityId)) : undefined;
+  const liveDropCoord = currentLiveOrder ? (currentLiveOrder.dropCoord || getCoordinatesForAddress(currentLiveOrder.drop, currentLiveOrder.cityId)) : undefined;
 
   const handleUpdate = (id, field, value) => {
     updateTariff(id, field, value);
@@ -31,26 +34,25 @@ export default function AdminDashboardPage() {
 
   const handleExportCSV = () => {
     const headers = ['Order ID', 'Date', 'Pickup', 'Destination', 'Vehicle', 'Fare (INR)', 'Status', 'Driver', 'Payment'];
+    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
     const rows = activeBookings.map(b => [
       b.orderId,
-      new Date(b.createdAt || Date.now()).toLocaleDateString(),
-      `"${b.pickup}"`,
-      `"${b.drop}"`,
-      `"${b.vehicleName}"`,
-      b.fare,
-      b.status,
-      `"${b.driver?.name || 'Unassigned'}"`,
-      b.paymentStatus || 'PAID'
-    ]);
+      new Date(b.createdAt || Date.now()).toISOString().split('T')[0],
+      b.pickup, b.drop, b.vehicleName, b.fare, b.status,
+      b.driver?.name || 'Unassigned',
+      b.paymentStatus || 'UNKNOWN'
+    ].map(esc).join(','));
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
+    // Blob (not a data: URI) so '#', commas and quotes in addresses can't truncate the file.
+    const blob = new Blob([[headers.map(esc).join(','), ...rows].join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `${BRANDING.name}_Dispatch_Report_${new Date().toISOString().split('T')[0]}.csv`);
+    link.href = url;
+    link.download = `${BRANDING.name}_Dispatch_Report_${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const filteredOrders = activeBookings.filter(b => {
@@ -88,7 +90,10 @@ export default function AdminDashboardPage() {
               <span>Export CSV</span>
             </button>
             <button
-              onClick={() => window.location.reload()}
+              onClick={() => {
+                setSaveSuccess(true);
+                setTimeout(() => setSaveSuccess(false), 1200);
+              }}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-porter-blue hover:bg-blue-600 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-blue-500/20"
             >
               <RefreshCw className="w-3.5 h-3.5" />
@@ -106,7 +111,7 @@ export default function AdminDashboardPage() {
                 <Truck className="w-5 h-5" />
               </div>
             </div>
-            <p className="text-3xl font-black text-white mt-2">{activeTripsCount + 3}</p>
+            <p className="text-3xl font-black text-white mt-2">{activeTripsCount}</p>
             <span className="text-[11px] text-emerald-400 font-semibold mt-1 block">● 98.4% On-time delivery</span>
           </div>
 
@@ -206,9 +211,16 @@ export default function AdminDashboardPage() {
               <p className="text-xs text-slate-400">Real customer orders synced in real-time</p>
             </div>
 
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search order ID or address"
+              className="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder:text-slate-500 w-full sm:w-64"
+            />
+
             {/* Filter buttons */}
             <div className="flex items-center gap-1.5 bg-slate-900 p-1 rounded-xl text-xs font-semibold text-slate-400">
-              {['all', 'in_transit', 'assigned', 'delivered'].map((f) => (
+              {['all', 'in_transit', 'assigned', 'delivered', 'cancelled'].map((f) => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
@@ -260,7 +272,7 @@ export default function AdminDashboardPage() {
                     </td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        {b.status !== 'delivered' && (
+                        {(b.status === 'assigned' || b.status === 'in_transit') && (
                           <button
                             onClick={() => updateBookingStatus(b.orderId, 'delivered')}
                             title="Force Mark Delivered"
@@ -270,7 +282,7 @@ export default function AdminDashboardPage() {
                           </button>
                         )}
                         <button
-                          onClick={() => updateBookingStatus(b.orderId, 'cancelled')}
+                          onClick={() => window.confirm(`Cancel order ${b.orderId}?`) && updateBookingStatus(b.orderId, 'cancelled')}
                           title="Cancel Order"
                           className="p-1.5 bg-rose-900/60 hover:bg-rose-800 text-rose-300 rounded-lg text-xs"
                         >
@@ -298,6 +310,13 @@ export default function AdminDashboardPage() {
               </p>
             </div>
 
+            <button
+              onClick={resetTariffs}
+              className="px-3 py-1 text-xs font-bold text-slate-300 bg-slate-900 border border-slate-700 rounded-xl hover:bg-slate-700"
+            >
+              Reset to defaults
+            </button>
+
             {saveSuccess && (
               <span className="text-xs font-bold text-emerald-400 bg-emerald-950 border border-emerald-800 px-3 py-1 rounded-xl flex items-center gap-1.5 animate-fadeIn">
                 <CheckCircle className="w-3.5 h-3.5" /> Rate Updated in Real-Time!
@@ -306,7 +325,7 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {fleetTariffs.slice(0, 3).map((v) => (
+            {fleetTariffs.map((v) => (
               <div key={v.id} className="p-4 bg-slate-900 rounded-xl border border-slate-700 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-white">{v.name}</span>
@@ -320,8 +339,10 @@ export default function AdminDashboardPage() {
                     </label>
                     <input
                       type="number"
-                      value={v.basePrice}
-                      onChange={(e) => handleUpdate(v.id, 'basePrice', e.target.value)}
+                      min="0"
+                      key={`${v.id}-base-${v.basePrice}`}
+                      defaultValue={v.basePrice}
+                      onBlur={(e) => handleUpdate(v.id, 'basePrice', e.target.value)}
                       className="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono font-bold"
                     />
                   </div>
@@ -332,8 +353,10 @@ export default function AdminDashboardPage() {
                     <input
                       type="number"
                       step="0.5"
-                      value={v.ratePerKm}
-                      onChange={(e) => handleUpdate(v.id, 'ratePerKm', e.target.value)}
+                      min="0"
+                      key={`${v.id}-rate-${v.ratePerKm}`}
+                      defaultValue={v.ratePerKm}
+                      onBlur={(e) => handleUpdate(v.id, 'ratePerKm', e.target.value)}
                       className="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono font-bold"
                     />
                   </div>

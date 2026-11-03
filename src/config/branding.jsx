@@ -15,6 +15,8 @@ export const BRANDING = {
   appIconPng: '/images/portex-app-icon.png',
   supportPhone: '1800 572 4000',
   supportEmail: 'support@portex.in',
+  gstin: '',   // TODO: your real GSTIN
+  cin: '',     // TODO: your real CIN
   colors: {
     primary: '#4338ca',      // Deep Electric Indigo
     primaryHover: '#3730a3',

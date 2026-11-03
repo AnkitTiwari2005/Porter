@@ -8,13 +8,17 @@ import {
 
 export default function AllIndiaParcelPage() {
   const navigate = useNavigate();
-  const { addBooking, setActiveTrackingOrderId } = useApp();
+  const { addBooking, setActiveTrackingOrderId, user, setIsLoginModalOpen } = useApp();
 
   const [pickupPincode, setPickupPincode] = useState('400001'); // Mumbai
   const [dropPincode, setDropPincode] = useState('560001');   // Bangalore
   const [weightKg, setWeightKg] = useState(2.5);
   const [serviceMode, setServiceMode] = useState('air'); // 'air' | 'surface'
   const [isBooked, setIsBooked] = useState(false);
+  const [receiverName, setReceiverName] = useState('');
+  const [receiverPhone, setReceiverPhone] = useState('');
+  const [formError, setFormError] = useState('');
+  const pinOk = (p) => /^[1-9][0-9]{5}$/.test(p);
 
   const pricing = useMemo(() => {
     const isAir = serviceMode === 'air';
@@ -31,6 +35,10 @@ export default function AllIndiaParcelPage() {
 
   const handleBookParcel = (e) => {
     e.preventDefault();
+    if (!user.isLoggedIn) { setIsLoginModalOpen(true); return; }
+    if (!pinOk(pickupPincode) || !pinOk(dropPincode)) { setFormError('Enter valid 6-digit pickup and destination pincodes.'); return; }
+    if (!receiverName.trim() || !/^[6-9][0-9]{9}$/.test(receiverPhone)) { setFormError('Enter the receiver name and a valid 10-digit mobile number.'); return; }
+    setFormError('');
     const orderId = addBooking({
       pickup: `Pincode: ${pickupPincode} (Doorstep Pickup)`,
       drop: `Pincode: ${dropPincode} (All India Destination)`,
@@ -41,18 +49,16 @@ export default function AllIndiaParcelPage() {
         icon: '/images/trucks_india_a42dcdfc61.webp'
       },
       fare: pricing.total,
-      senderName: 'Ankit Sharma',
-      senderPhone: '+91 98765 43210',
-      receiverName: 'Rohan Mehra',
-      receiverPhone: '+91 98451 98123',
+      senderName: user.name,
+      senderPhone: user.phone,
+      receiverName: receiverName.trim(),
+      receiverPhone,
       goodsType: `Intercity Courier Parcel (${weightKg} kg)`
     });
 
     setIsBooked(orderId);
     setActiveTrackingOrderId(orderId);
-    setTimeout(() => {
-      navigate('/track');
-    }, 2000);
+    navigate('/track');
   };
 
   return (
@@ -120,7 +126,9 @@ export default function AllIndiaParcelPage() {
                     placeholder="e.g. 400001 (Mumbai)"
                     className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-porter-blue"
                   />
-                  <span className="text-[10px] text-emerald-600 font-semibold block mt-1">● Doorstep pickup available</span>
+                  {pinOk(pickupPincode)
+                    ? <span className="text-[10px] text-emerald-600 font-semibold block mt-1">● Pincode format valid</span>
+                    : <span className="text-[10px] text-rose-600 font-semibold block mt-1">Enter a 6-digit pincode</span>}
                 </div>
 
                 <div>
@@ -133,9 +141,26 @@ export default function AllIndiaParcelPage() {
                     placeholder="e.g. 560001 (Bangalore)"
                     className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-porter-blue"
                   />
-                  <span className="text-[10px] text-emerald-600 font-semibold block mt-1">● Direct delivery serviceable</span>
+                  {pinOk(dropPincode)
+                    ? <span className="text-[10px] text-emerald-600 font-semibold block mt-1">● Pincode format valid</span>
+                    : <span className="text-[10px] text-rose-600 font-semibold block mt-1">Enter a 6-digit pincode</span>}
                 </div>
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Receiver Name</label>
+                  <input type="text" value={receiverName} onChange={(e) => setReceiverName(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-porter-blue" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Receiver Mobile</label>
+                  <input type="tel" inputMode="numeric" maxLength={10} value={receiverPhone}
+                    onChange={(e) => setReceiverPhone(e.target.value.replace(/\D/g, ''))}
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-porter-blue" />
+                </div>
+              </div>
+              {formError && <p className="text-xs text-rose-600 font-medium">{formError}</p>}
 
               {/* Package Weight Slider */}
               <div className="p-4 bg-sky-50/60 rounded-2xl border border-sky-100 space-y-2">

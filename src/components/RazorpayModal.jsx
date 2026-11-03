@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, ShieldCheck, CheckCircle2, CreditCard, Smartphone, Building2, Banknote, ArrowRight, Lock, QrCode } from 'lucide-react';
 import { BRANDING } from '../config/branding';
 
@@ -12,19 +12,31 @@ export default function RazorpayModal({
   onPaymentSuccess
 }) {
   const [method, setMethod] = useState('upi'); // 'upi' | 'card' | 'netbanking' | 'cod'
-  const [upiId, setUpiId] = useState('ankit@okhdfcbank');
+  const [upiId, setUpiId] = useState('');
   const [showQr, setShowQr] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [receipt, setReceipt] = useState(null);
+  const [payError, setPayError] = useState('');
+
+  // Reset on close so a second booking never shows the previous receipt.
+  useEffect(() => {
+    if (!isOpen) { setReceipt(null); setProcessing(false); setShowQr(false); setPayError(''); }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   const handlePay = (e) => {
     e.preventDefault();
+    if (method === 'upi' && !showQr && !/^[\w.-]{2,}@[a-zA-Z]{2,}$/.test(upiId.trim())) {
+      setPayError('Enter a valid UPI ID, e.g. name@okhdfcbank');
+      return;
+    }
+    setPayError('');
     setProcessing(true);
 
     setTimeout(() => {
-      const paymentId = `pay_PRT_${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+      // COD has no online payment, so no payment id (otherwise it is stored as PAID_ONLINE).
+      const paymentId = method === 'cod' ? null : `pay_PRT_${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
       setProcessing(false);
       const paymentData = {
         paymentId,
@@ -33,15 +45,12 @@ export default function RazorpayModal({
         method: method.toUpperCase(),
         paidAt: new Date().toISOString()
       };
-      setReceipt(paymentData);
-      if (onPaymentSuccess) {
-        onPaymentSuccess(paymentData);
-      }
+      setReceipt(paymentData); // booking is created only when the user taps Continue
     }, 1500);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
+    <div role="dialog" aria-modal="true" onClick={(e) => e.target === e.currentTarget && !processing && onClose()} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
       <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border border-gray-200">
         {/* Razorpay Brand Header */}
         <div className="bg-[#0c2340] text-white p-5 flex items-center justify-between">
@@ -73,17 +82,17 @@ export default function RazorpayModal({
             </div>
 
             <div>
-              <h3 className="text-xl font-black text-gray-900">Payment Successful!</h3>
+              <h3 className="text-xl font-black text-gray-900">{receipt.method === 'COD' ? 'Booking Confirmed!' : 'Payment Successful!'}</h3>
               <p className="text-xs text-gray-500 mt-1">Your transaction has been securely processed</p>
             </div>
 
             <div className="bg-gray-50 rounded-2xl p-4 border border-gray-200 text-xs text-left space-y-2">
               <div className="flex justify-between">
                 <span className="text-gray-500">Transaction ID:</span>
-                <span className="font-mono font-bold text-gray-800">{receipt.paymentId}</span>
+                <span className="font-mono font-bold text-gray-800">{receipt.paymentId || 'Pay driver on delivery'}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Amount Paid:</span>
+                <span className="text-gray-500">{receipt.method === 'COD' ? 'Amount Due:' : 'Amount Paid:'}</span>
                 <span className="font-bold text-emerald-600 text-sm">₹{receipt.amount}</span>
               </div>
               <div className="flex justify-between">
@@ -97,7 +106,7 @@ export default function RazorpayModal({
             </div>
 
             <button
-              onClick={onClose}
+              onClick={() => onPaymentSuccess && onPaymentSuccess(receipt)}
               className="w-full py-3.5 bg-porter-blue hover:bg-porter-hover text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-500/25 transition"
             >
               Continue to Live Order Tracking
@@ -216,7 +225,7 @@ export default function RazorpayModal({
                         <button
                           key={suffix}
                           type="button"
-                          onClick={() => setUpiId(`customer${suffix}`)}
+                          onClick={() => setUpiId(`${upiId.split('@')[0] || 'yourname'}${suffix}`)}
                           className="text-[10px] bg-gray-100 hover:bg-gray-200 px-2 py-0.5 rounded text-gray-600 font-mono"
                         >
                           {suffix}
@@ -258,6 +267,8 @@ export default function RazorpayModal({
               </div>
             )}
 
+            {payError && <p className="text-xs text-rose-600 font-medium">{payError}</p>}
+
             {/* Action button */}
             <button
               type="submit"
@@ -280,7 +291,7 @@ export default function RazorpayModal({
 
             <div className="flex items-center justify-center gap-2 text-[10px] text-gray-400">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-              <span>256-Bit SSL Encrypted • RBI & PCI-DSS Compliant</span>
+              <span>Demo checkout — no real payment is taken</span>
             </div>
           </form>
         )}

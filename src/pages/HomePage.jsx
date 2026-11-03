@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { BRANDING } from '../config/branding';
-import { POPULAR_LOCATIONS, FAQS, TESTIMONIALS } from '../data/mockData';
+import { FAQS } from '../data/mockData';
+import { getCityLocations } from '../data/geoData';
 import LocationSearchInput from '../components/LocationSearchInput';
 import { 
   Truck, Bike, Package, Home, MapPin, ArrowRight, ShieldCheck, 
@@ -18,7 +19,9 @@ export default function HomePage() {
   const [drop, setDrop] = useState('');
   const [activeFaq, setActiveFaq] = useState(null);
 
-  const cityLocations = POPULAR_LOCATIONS[selectedCity.id] || POPULAR_LOCATIONS['mumbai'];
+  const cityLocations = getCityLocations(selectedCity.id);
+  const minTruckFare = Math.min(...fleetTariffs.filter(v => v.category === 'truck').map(v => v.basePrice));
+  const minBikeFare = Math.min(...fleetTariffs.filter(v => v.category === 'bike').map(v => v.basePrice));
 
   const handleQuickEstimate = (e) => {
     e.preventDefault();
@@ -57,11 +60,12 @@ export default function HomePage() {
         {/* Layer 1: Strictly User's Looping Video */}
         <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden select-none">
           <video
+            preload="metadata"
             autoPlay
             loop
             muted
             playsInline
-            className="absolute inset-0 w-full h-full object-cover object-center filter brightness-95 contrast-105 opacity-65"
+            className="absolute inset-0 w-full h-full object-cover object-center filter brightness-95 contrast-105 opacity-65 motion-reduce:hidden"
           >
             <source src="/videos/hero-traffic.webm" type="video/webm" />
           </video>
@@ -84,7 +88,7 @@ export default function HomePage() {
           <div className="lg:col-span-6 space-y-5 sm:space-y-7 min-w-0">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full bg-indigo-950/70 backdrop-blur-md border border-indigo-400/30 text-xs font-semibold text-indigo-200 shadow-lg shadow-indigo-950/50">
               <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-400 animate-pulse ring-4 ring-emerald-400/20"></span>
-              <span className="tracking-wide text-[11px] sm:text-xs">Available across {selectedCity?.name || 'Mumbai'} & 19+ Indian Cities</span>
+              <span className="tracking-wide text-[11px] sm:text-xs">Available across {selectedCity?.name || 'Mumbai'} & 15+ Indian Cities</span>
             </div>
 
             <h1 className="font-display text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.1] text-white">
@@ -95,7 +99,7 @@ export default function HomePage() {
             </h1>
 
             <p className="text-sm sm:text-lg text-slate-300 max-w-xl font-normal leading-relaxed">
-              India's next-generation on-demand logistics network. Instant mini trucks, quick city 2-wheelers, and verified home shifting across 19+ cities with upfront guaranteed fares.
+              India's next-generation on-demand logistics network. Instant mini trucks, quick city 2-wheelers, and verified home shifting across 15+ cities with upfront guaranteed fares.
             </p>
 
             {/* Portex Performance Pillars with Elevated Glass Style */}
@@ -252,6 +256,7 @@ export default function HomePage() {
             <div>
               <div className="relative h-44 w-full overflow-hidden bg-slate-900">
                 <img 
+                  loading="lazy" decoding="async" 
                   src="/images/mini-trucks-fleet.webp" 
                   alt="City Mini Trucks Fleet" 
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
@@ -270,7 +275,7 @@ export default function HomePage() {
                   Tata Ace, 3-Wheelers & Pickup 8ft for business transport, furniture moving and bulk merchandise.
                 </p>
                 <div className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg w-fit border border-emerald-100">
-                  Base fare starts at ₹189
+                  Base fare starts at ₹{minTruckFare}
                 </div>
               </div>
             </div>
@@ -290,6 +295,7 @@ export default function HomePage() {
             <div>
               <div className="relative h-44 w-full overflow-hidden bg-slate-900">
                 <img 
+                  loading="lazy" decoding="async" 
                   src="/images/courier-bike-express.webp" 
                   alt="2-Wheeler Express Courier" 
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
@@ -308,7 +314,7 @@ export default function HomePage() {
                   Reliable goods transportation services for up to 20 kg. Instant pickup within 15 minutes.
                 </p>
                 <div className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg w-fit border border-emerald-100">
-                  Fares starting at ₹42
+                  Fares starting at ₹{minBikeFare}
                 </div>
               </div>
             </div>
@@ -328,6 +334,7 @@ export default function HomePage() {
             <div>
               <div className="relative h-44 w-full overflow-hidden bg-slate-900">
                 <img 
+                  loading="lazy" decoding="async" 
                   src="/images/packers-hero.webp" 
                   alt="Packers & Movers Shifting" 
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
@@ -366,6 +373,7 @@ export default function HomePage() {
             <div>
               <div className="relative h-44 w-full overflow-hidden bg-slate-900">
                 <img 
+                  loading="lazy" decoding="async" 
                   src="/images/all-india-logistics.webp" 
                   alt="All India Parcel Courier" 
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
@@ -404,6 +412,7 @@ export default function HomePage() {
             <div className="grid grid-cols-1 md:grid-cols-2">
               <div className="relative h-44 md:h-full w-full overflow-hidden bg-slate-900">
                 <img 
+                  loading="lazy" decoding="async" 
                   src="/images/enterprise-logistics.webp" 
                   alt="Portex Enterprise Logistics" 
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
@@ -583,10 +592,10 @@ export default function HomePage() {
                 </div>
 
                 <div className="space-y-3">
-                  <a href="https://play.google.com/store/apps/details?id=com.theporter.android.customerapp" target="_blank" rel="noreferrer" className="block">
+                  <a href={import.meta.env.VITE_PLAY_STORE_URL} target="_blank" rel="noreferrer" className="block">
                     <img src="/images/googleplay_419e81f188.png" alt="Play Store" className="h-11 hover:scale-105 transition-transform" />
                   </a>
-                  <a href="https://apps.apple.com/in/app/porter-trucks-bike-delivery/id1451296307" target="_blank" rel="noreferrer" className="block">
+                  <a href={import.meta.env.VITE_APP_STORE_URL} target="_blank" rel="noreferrer" className="block">
                     <img src="/images/appstore_1ca72680f5.png" alt="App Store" className="h-11 hover:scale-105 transition-transform" />
                   </a>
                 </div>

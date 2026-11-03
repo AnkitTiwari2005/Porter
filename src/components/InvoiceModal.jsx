@@ -2,20 +2,50 @@ import React from 'react';
 import { X, Printer, Download, CheckCircle, ShieldCheck } from 'lucide-react';
 import { BRANDING, BrandLogo } from '../config/branding';
 
+const PAYMENT_LABEL = {
+  PAID_ONLINE: 'Paid online',
+  CASH_ON_DELIVERY: 'Cash on delivery - payable to driver'
+};
+
 export default function InvoiceModal({ isOpen, onClose, order }) {
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
   if (!isOpen || !order) return null;
 
+  // window.print() would print the whole app (navbar, overlay, clipped modal).
+  // Print only the invoice, in its own window with the app's stylesheets.
   const handlePrint = () => {
-    window.print();
+    const el = document.getElementById('printable-invoice');
+    if (!el) return;
+    const w = window.open('', '_blank', 'width=900,height=1000');
+    if (!w) { window.print(); return; }
+    const styles = [...document.querySelectorAll('link[rel="stylesheet"], style')].map((n) => n.outerHTML).join('');
+    w.document.write(`<!doctype html><html><head><title>${invoiceNo}</title>${styles}</head><body class="bg-white p-6">${el.outerHTML}</body></html>`);
+    w.document.close();
+    w.onload = () => { w.focus(); w.print(); };
   };
 
-  const invoiceNo = `INV-2026-${order.orderId.replace(/\D/g, '') || '89412'}`;
-  const baseFare = Math.round(order.fare * 0.72);
-  const distFare = Math.round(order.fare * 0.23);
-  const gst = Math.round(order.fare * 0.05);
+  const invoiceNo = `INV-${new Date(order.createdAt || Date.now()).getFullYear()}-${order.orderId.replace(/\D/g, '')}`;
+  // Use the real fare breakdown saved at booking time; only legacy orders fall back to back-calculation.
+  const p = order.pricing;
+  const taxable = p ? p.subtotal - p.discount : Math.round(order.fare / 1.05);
+  const gst = p ? p.gst : order.fare - taxable;
+  const lineItems = p
+    ? [
+        { label: `Base fare (first ${p.baseKm} km)`, amount: p.baseFare },
+        p.distanceCharge > 0 && { label: `Distance charge (${p.extraKm} km @ ₹${p.ratePerKm}/km)`, amount: p.distanceCharge },
+        p.helperCharge > 0 && { label: 'Loading helper assistance', amount: p.helperCharge },
+        p.stopCharge > 0 && { label: 'Multi-drop stop fee', amount: p.stopCharge },
+        p.discount > 0 && { label: 'Coupon discount', amount: -p.discount }
+      ].filter(Boolean)
+    : [{ label: `Goods Transportation Service (${order.vehicleName})`, amount: taxable }];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
+    <div role="dialog" aria-modal="true" onClick={(e) => e.target === e.currentTarget && onClose()} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
       <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden border border-gray-200 flex flex-col max-h-[90vh]">
         {/* Modal Top Bar */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
@@ -49,8 +79,8 @@ export default function InvoiceModal({ isOpen, onClose, order }) {
             <div>
               <BrandLogo className="h-9 mb-2" />
               <p className="font-bold text-gray-900">{BRANDING.legalName}</p>
-              <p className="text-gray-500">GSTIN: 27AABCS1429B1Z8</p>
-              <p className="text-gray-500">CIN: U74999MH2014PTC254891</p>
+              <p className="text-gray-500">GSTIN: {BRANDING.gstin || '— (not configured)'}</p>
+              <p className="text-gray-500">CIN: {BRANDING.cin || '— (not configured)'}</p>
               <p className="text-gray-500">Helpline: {BRANDING.supportPhone} • {BRANDING.supportEmail}</p>
             </div>
 
@@ -59,7 +89,7 @@ export default function InvoiceModal({ isOpen, onClose, order }) {
               <p className="text-gray-500 mt-1">Invoice Date: {new Date(order.createdAt || Date.now()).toLocaleDateString()}</p>
               <p className="text-gray-500">Order ID: <strong className="font-mono text-gray-900">{order.orderId}</strong></p>
               <span className="inline-block mt-2 px-2.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[11px]">
-                Payment Status: {order.paymentStatus || 'COMPLETED'}
+                Payment: {PAYMENT_LABEL[order.paymentStatus] || order.paymentStatus || '—'}
               </span>
             </div>
           </div>
@@ -68,15 +98,15 @@ export default function InvoiceModal({ isOpen, onClose, order }) {
           <div className="grid grid-cols-2 gap-6 bg-gray-50 p-4 rounded-2xl border border-gray-100">
             <div>
               <span className="font-bold uppercase text-gray-400 text-[10px] block mb-1">Customer / Consignor</span>
-              <p className="font-bold text-sm text-gray-900">{order.senderName || 'Ankit Sharma'}</p>
-              <p className="text-gray-600 font-mono mt-0.5">{order.senderPhone || '+91 98765 43210'}</p>
+              <p className="font-bold text-sm text-gray-900">{order.senderName || '—'}</p>
+              <p className="text-gray-600 font-mono mt-0.5">{order.senderPhone || '—'}</p>
               <p className="text-gray-500 mt-1"><strong className="text-gray-700">Pickup:</strong> {order.pickup}</p>
             </div>
 
             <div>
               <span className="font-bold uppercase text-gray-400 text-[10px] block mb-1">Consignee (Receiver)</span>
-              <p className="font-bold text-sm text-gray-900">{order.receiverName || 'Pooja Verma'}</p>
-              <p className="text-gray-600 font-mono mt-0.5">{order.receiverPhone || '+91 98200 11223'}</p>
+              <p className="font-bold text-sm text-gray-900">{order.receiverName || '—'}</p>
+              <p className="text-gray-600 font-mono mt-0.5">{order.receiverPhone || '—'}</p>
               <p className="text-gray-500 mt-1"><strong className="text-gray-700">Drop:</strong> {order.drop}</p>
             </div>
           </div>
@@ -104,14 +134,14 @@ export default function InvoiceModal({ isOpen, onClose, order }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              <tr>
-                <td className="py-3 font-medium text-gray-900">
-                  Intra-city Goods Transportation Service ({order.vehicleName})
-                </td>
-                <td className="py-3 font-mono text-gray-500">996511</td>
-                <td className="py-3 text-center">{order.distance || '14.2 km'}</td>
-                <td className="py-3 text-right font-mono font-semibold">₹{baseFare + distFare}</td>
-              </tr>
+              {lineItems.map((li, i) => (
+                <tr key={i}>
+                  <td className="py-2.5 font-medium text-gray-900">{li.label}</td>
+                  <td className="py-2.5 font-mono text-gray-500">{i === 0 ? '996511' : ''}</td>
+                  <td className="py-2.5 text-center">{i === 0 ? (order.distance || '—') : ''}</td>
+                  <td className="py-2.5 text-right font-mono font-semibold">{li.amount < 0 ? '-' : ''}₹{Math.abs(li.amount)}</td>
+                </tr>
+              ))}
               <tr>
                 <td className="py-2 text-gray-600">Goods and Services Tax (GST @ 5%)</td>
                 <td className="py-2 font-mono text-gray-500">CGST (2.5%) + SGST (2.5%)</td>
@@ -132,7 +162,7 @@ export default function InvoiceModal({ isOpen, onClose, order }) {
             <span>This is a computer-generated tax invoice and requires no physical signature.</span>
             <div className="flex items-center gap-1 text-emerald-600 font-bold">
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>100% Tax Compliant</span>
+              <span>Computer-generated invoice</span>
             </div>
           </div>
         </div>

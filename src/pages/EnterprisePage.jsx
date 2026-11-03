@@ -17,9 +17,24 @@ export default function EnterprisePage() {
     vehicleRequirement: 'Tata Ace & 3-Wheelers'
   });
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!formData.companyName.trim() || !formData.contactName.trim()) {
+      setError('Please provide company name and contact person.');
+      return;
+    }
+    if (!/^[6-9]\d{9}$/.test(formData.phone.trim())) {
+      setError('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+    setError('');
+    try {
+      const existing = JSON.parse(localStorage.getItem('porter_enterprise_leads') || '[]');
+      existing.unshift({ ...formData, submittedAt: new Date().toISOString() });
+      localStorage.setItem('porter_enterprise_leads', JSON.stringify(existing));
+    } catch { /* storage fallback */ }
     setSubmitted(true);
   };
 
@@ -71,6 +86,7 @@ export default function EnterprisePage() {
           {/* Enterprise Lead Generation Form */}
           <div className="lg:col-span-5">
             <div className="bg-white rounded-3xl p-6 sm:p-8 text-slate-900 shadow-2xl border border-slate-100">
+              {error && <p className="text-xs text-rose-500 font-semibold mb-2">{error}</p>}
               {submitted ? (
                 <div className="py-10 text-center space-y-3 animate-fadeIn">
                   <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
@@ -217,7 +233,7 @@ export default function EnterprisePage() {
             <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
               <Users className="w-6 h-6" />
             </div>
-            <h4 className="text-base font-bold text-gray-900">Dedicated Account Key Manager</h4>
+            <h4 className="text-base font-bold text-gray-900">Dedicated Key Account Manager</h4>
             <p className="text-xs text-gray-500 leading-relaxed">
               A dedicated logistics specialist to ensure zero fleet shortages during festival spikes and month-end dispatch peaks.
             </p>

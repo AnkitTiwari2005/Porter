@@ -9,43 +9,46 @@ import {
   Clock, CheckCircle, AlertTriangle, ArrowLeft, Share2, HelpCircle, 
   FileText, Play, Pause, CheckCircle2 
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 
 export default function OrderTrackingPage() {
   const { activeBookings, activeTrackingOrderId, setActiveTrackingOrderId, updateBookingStatus } = useApp();
+  const { orderId: routeOrderId } = useParams();
   const [copied, setCopied] = useState(false);
   const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
   const [isSimulating, setIsSimulating] = useState(false);
-  const [simulatedProgress, setSimulatedProgress] = useState(0.4);
+  const [simulatedProgress, setSimulatedProgress] = useState(null);
 
-  const order = activeBookings.find(b => b.orderId === activeTrackingOrderId) || activeBookings[0];
-  const pickupCoord = order ? getCoordinatesForAddress(order.pickup) : [19.1197, 72.8464];
-  const dropCoord = order ? getCoordinatesForAddress(order.drop) : [19.0664, 72.8687];
+  const order = activeBookings.find(b => b.orderId === (routeOrderId || activeTrackingOrderId))
+    || (routeOrderId ? undefined : activeBookings[0]);
+  const pickupCoord = order ? (order.pickupCoord || getCoordinatesForAddress(order.pickup, order.cityId)) : [19.1197, 72.8464];
+  const dropCoord = order ? (order.dropCoord || getCoordinatesForAddress(order.drop, order.cityId)) : [19.0664, 72.8687];
 
-  const handleShare = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleShare = async () => {
+    const url = `${window.location.origin}/track/${order.orderId}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      window.prompt('Copy tracking link:', url);
+    }
   };
 
-  // Real-time trip movement simulator
+  // Demo simulator: advances the marker, stops just short of the destination.
+  // Delivery itself is completed only by the driver's OTP check, never by the simulation.
+  const baseProgress = order ? (order.progress ?? 60) / 100 : 0.6;
   useEffect(() => {
-    let interval;
-    if (isSimulating && order && order.status !== 'delivered') {
-      interval = setInterval(() => {
-        setSimulatedProgress(prev => {
-          if (prev >= 0.95) {
-            clearInterval(interval);
-            setIsSimulating(false);
-            updateBookingStatus(order.orderId, 'delivered');
-            return 1.0;
-          }
-          return prev + 0.05;
-        });
-      }, 1500);
-    }
-    return () => clearInterval(interval);
-  }, [isSimulating, order]);
+    if (!isSimulating) return undefined;
+    const id = setInterval(() => {
+      setSimulatedProgress((p) => Math.min(0.95, (p ?? baseProgress) + 0.05));
+    }, 1500);
+    return () => clearInterval(id);
+  }, [isSimulating, baseProgress]);
+
+  useEffect(() => {
+    if (isSimulating && simulatedProgress !== null && simulatedProgress >= 0.95) setIsSimulating(false);
+  }, [isSimulating, simulatedProgress]);
 
   if (!order) {
     return (
@@ -66,7 +69,9 @@ export default function OrderTrackingPage() {
   }
 
   const isDelivered = order.status === 'delivered';
-  const effectiveProgress = isDelivered ? 1.0 : (isSimulating ? simulatedProgress : 0.6);
+  const isCancelled = order.status === 'cancelled';
+  const isInTransit = order.status === 'in_transit';
+  const effectiveProgress = isDelivered ? 1.0 : (simulatedProgress ?? baseProgress);
 
   return (
     <div className="min-h-screen bg-[#f8fafc] py-8 px-4 sm:px-8">
@@ -137,14 +142,14 @@ export default function OrderTrackingPage() {
             {activeBookings.map(b => (
               <button
                 key={b.orderId}
-                onClick={() => { setActiveTrackingOrderId(b.orderId); setIsSimulating(false); }}
+                onClick={() => { setActiveTrackingOrderId(b.orderId); setIsSimulating(false); setSimulatedProgress(null); }}
                 className={`text-xs px-3 py-1.5 rounded-xl font-bold border transition shrink-0 ${
                   b.orderId === order.orderId
                     ? 'bg-porter-blue text-white border-porter-blue shadow-sm'
                     : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                {b.orderId} • {b.vehicleName.split(' ')[0]} (₹{b.fare})
+                {b.orderId} • {b.vehicleName.replace(/\s*\(.*\)$/, '')} (₹{b.fare})
               </button>
             ))}
           </div>

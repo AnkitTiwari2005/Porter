@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { POPULAR_LOCATIONS, PROMO_CODES } from '../data/mockData';
-import { getCoordinatesForAddress, calculateGeoDistance } from '../data/geoData';
+import { PROMO_CODES } from '../data/mockData';
+import { computeFare, promoApplies } from '../utils/pricing';
+import { getCoordinatesForAddress, calculateGeoDistance, getCityLocations } from '../data/geoData';
 import InteractiveMap from '../components/InteractiveMap';
 import RazorpayModal from '../components/RazorpayModal';
 import LocationSearchInput from '../components/LocationSearchInput';
@@ -16,9 +17,9 @@ import {
 export default function FareEstimatePage() {
   const { state } = useLocation();
   const navigate = useNavigate();
-  const { selectedCity, setIsCityModalOpen, addBooking, setIsTrackModalOpen, setActiveTrackingOrderId, user, fleetTariffs } = useApp();
+  const { selectedCity, setIsCityModalOpen, addBooking, setIsTrackModalOpen, setActiveTrackingOrderId, user, fleetTariffs, setIsLoginModalOpen } = useApp();
 
-  const cityLocations = POPULAR_LOCATIONS[selectedCity.id] || POPULAR_LOCATIONS['mumbai'];
+  const cityLocations = getCityLocations(selectedCity.id);
 
   const [pickup, setPickup] = useState(state?.pickup || `${cityLocations[0]?.name || 'Andheri West'}, ${selectedCity.name}`);
   const [drop, setDrop] = useState(state?.drop || `${cityLocations[1]?.name || 'BKC Bandra'}, ${selectedCity.name}`);
@@ -30,7 +31,9 @@ export default function FareEstimatePage() {
 
   const [distanceKm, setDistanceKm] = useState(13.5);
   const [selectedVehicleId, setSelectedVehicleId] = useState(state?.selectedVehicleId || (state?.category === 'bike' ? 'two-wheeler' : 'tata-ace'));
-  const [activeCategoryFilter, setActiveCategoryFilter] = useState('all');
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState(
+    state?.category === 'bike' ? 'bike' : state?.category === 'truck' ? 'truck' : 'all'
+  );
 
   // Promo code state
   const [promoInput, setPromoInput] = useState('');
@@ -42,13 +45,15 @@ export default function FareEstimatePage() {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
   const [bookingForm, setBookingForm] = useState({
-    senderName: user.name || 'Ankit Sharma',
-    senderPhone: user.phone || '9876543210',
-    receiverName: 'Pooja Verma',
-    receiverPhone: '9820011223',
+    senderName: user.name || '',
+    senderPhone: user.phone || '',
+    receiverName: '',
+    receiverPhone: '',
     goodsType: 'Carton Boxes & Electronics'
   });
-  const [bookingSuccess, setBookingSuccess] = useState(null);
+  // Generated once, so the payment header, booking and invoice all show the same ID.
+  const [draftOrderId] = useState(() => `PRT-${Math.floor(10000 + Math.random() * 90000)}`);
+  const [routeError, setRouteError] = useState('');
 
   // Derive coordinates from selected locations
   const pickupCoord = useMemo(() => {
@@ -83,40 +88,16 @@ export default function FareEstimatePage() {
   }, [selectedVehicleId, fleetTariffs]);
 
   // Pricing calculation
-  const pricing = useMemo(() => {
-    const v = selectedVehicle;
-    const base = v.basePrice;
-    const extraKm = Math.max(0, distanceKm - v.baseKm);
-    const distanceCharge = Math.round(extraKm * v.ratePerKm);
-    const helperCharge = helperCount === 1 ? 150 : helperCount === 2 ? 300 : 0;
-    const stopCharge = showExtraStop && extraStop ? 50 : 0;
-
-    const subtotal = base + distanceCharge + helperCharge + stopCharge;
-
-    let discount = 0;
-    if (appliedPromo) {
-      const calcDiscount = Math.round((subtotal * appliedPromo.discountPercent) / 100);
-      discount = Math.min(calcDiscount, appliedPromo.maxDiscount);
-    }
-
-    const discountedSubtotal = Math.max(0, subtotal - discount);
-    const gst = Math.round(discountedSubtotal * 0.05); // 5% GST
-    const total = discountedSubtotal + gst;
-
-    return {
-      baseFare: base,
-      baseKm: v.baseKm,
-      extraKm: Number(extraKm.toFixed(1)),
-      ratePerKm: v.ratePerKm,
-      distanceCharge,
-      helperCharge,
-      stopCharge,
-      subtotal,
-      discount,
-      gst,
-      total
-    };
-  }, [selectedVehicle, distanceKm, helperCount, showExtraStop, extraStop, appliedPromo]);
+  const pricing = useMemo(
+    () => computeFare({
+      vehicle: selectedVehicle,
+      distanceKm,
+      helperCount,
+      hasStop: showExtraStop && !!extraStop,
+      promo: appliedPromo
+    }),
+    [selectedVehicle, distanceKm, helperCount, showExtraStop, extraStop, appliedPromo]
+  );
 
   const handleApplyPromo = (e) => {
     e.preventDefault();
@@ -126,12 +107,24 @@ export default function FareEstimatePage() {
       setPromoError('Invalid coupon code. Try PORTER50 or FIRSTTRUCK');
       return;
     }
-    if (pricing.subtotal < found.minFare) {
-      setPromoError(`Minimum ride fare of ₹${found.minFare} required for this coupon.`);
+    const check = promoApplies(found, selectedVehicle, pricing.subtotal);
+    if (!check.ok) {
+      setPromoError(check.reason);
       return;
     }
     setAppliedPromo(found);
     setPromoInput('');
+  };
+
+  const handleBookClick = () => {
+    if (!user.isLoggedIn) { setIsLoginModalOpen(true); return; }
+    if (!pickup.trim() || !drop.trim()) { setRouteError('Enter both pickup and drop addresses.'); return; }
+    if (pickup.trim().toLowerCase() === drop.trim().toLowerCase()) {
+      setRouteError('Pickup and drop cannot be the same place.');
+      return;
+    }
+    setRouteError('');
+    setIsBookingModalOpen(true);
   };
 
   const handleProceedToPayment = (e) => {
@@ -154,15 +147,15 @@ export default function FareEstimatePage() {
       receiverPhone: bookingForm.receiverPhone,
       goodsType: bookingForm.goodsType,
       paymentId: paymentData.paymentId,
-      helperCount
+      helperCount,
+      orderId: draftOrderId,
+      pickupCoord,
+      dropCoord,
+      pricing
     });
 
-    setBookingSuccess(orderId);
     setActiveTrackingOrderId(orderId);
-    setTimeout(() => {
-      setBookingSuccess(null);
-      navigate('/track');
-    }, 1500);
+    navigate('/track');
   };
 
   const filteredVehicles = fleetTariffs.filter(v => {
@@ -208,7 +201,7 @@ export default function FareEstimatePage() {
                   <span>1. Route & Live GPS Map</span>
                 </h3>
                 <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                  {distanceKm} km (Real Driving Route)
+                  {distanceKm} km (approx. road distance)
                 </span>
               </div>
 
@@ -384,8 +377,7 @@ export default function FareEstimatePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                 {filteredVehicles.map((v) => {
                   const isSelected = selectedVehicleId === v.id;
-                  const extra = Math.max(0, distanceKm - v.baseKm);
-                  const approxPrice = Math.round((v.basePrice + (extra * v.ratePerKm)) * 1.05);
+                  const approxPrice = computeFare({ vehicle: v, distanceKm }).total;
 
                   return (
                     <div
@@ -457,7 +449,7 @@ export default function FareEstimatePage() {
 
                 {pricing.helperCharge > 0 && (
                   <div className="flex items-center justify-between text-gray-600">
-                    <span>Loading Helper Assistance ({helperCount} helper)</span>
+                    <span>Loading Helper Assistance ({helperCount} {helperCount === 1 ? 'helper' : 'helpers'})</span>
                     <span className="font-semibold text-gray-900">₹{pricing.helperCharge}</span>
                   </div>
                 )}
@@ -540,12 +532,14 @@ export default function FareEstimatePage() {
               {/* Book Now Button */}
               <button
                 type="button"
-                onClick={() => setIsBookingModalOpen(true)}
+                onClick={handleBookClick}
                 className="w-full py-4 bg-porter-blue hover:bg-porter-hover text-white rounded-2xl font-bold text-sm shadow-xl shadow-blue-500/25 flex items-center justify-center gap-2 group transition"
               >
                 <span>Book {selectedVehicle.name} • ₹{pricing.total}</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </button>
+
+              {routeError && <p className="text-xs text-rose-600 font-medium text-center">{routeError}</p>}
 
               <div className="flex items-center justify-center gap-2 text-[11px] text-gray-400">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
@@ -609,6 +603,8 @@ export default function FareEstimatePage() {
                     <input
                       type="tel"
                       required
+                      pattern="(\+91[\s-]?)?[6-9][0-9]{9}"
+                      title="10-digit Indian mobile number"
                       value={bookingForm.senderPhone}
                       onChange={(e) => setBookingForm({...bookingForm, senderPhone: e.target.value})}
                       className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-porter-blue focus:bg-white"
@@ -632,6 +628,8 @@ export default function FareEstimatePage() {
                     <input
                       type="tel"
                       required
+                      pattern="(\+91[\s-]?)?[6-9][0-9]{9}"
+                      title="10-digit Indian mobile number"
                       value={bookingForm.receiverPhone}
                       onChange={(e) => setBookingForm({...bookingForm, receiverPhone: e.target.value})}
                       className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-porter-blue focus:bg-white"
@@ -677,7 +675,7 @@ export default function FareEstimatePage() {
         isOpen={isPaymentModalOpen}
         onClose={() => setIsPaymentModalOpen(false)}
         amount={pricing.total}
-        orderId={`PRT-${Math.floor(10000 + Math.random() * 90000)}`}
+        orderId={draftOrderId}
         customerName={bookingForm.senderName}
         customerPhone={bookingForm.senderPhone}
         onPaymentSuccess={handlePaymentSuccess}

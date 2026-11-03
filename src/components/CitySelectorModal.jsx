@@ -4,6 +4,11 @@ import { CITIES } from '../data/mockData';
 import { Search, MapPin, X, Check } from 'lucide-react';
 
 export default function CitySelectorModal() {
+  React.useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') setIsCityModalOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   const { isCityModalOpen, setIsCityModalOpen, selectedCity, setSelectedCity } = useApp();
   const [search, setSearch] = useState('');
 
@@ -22,7 +27,7 @@ export default function CitySelectorModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+    <div role="dialog" aria-modal="true" onClick={(e) => e.target === e.currentTarget && setIsCityModalOpen(false)} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
       <div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden border border-gray-100 animate-scaleUp">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/70">

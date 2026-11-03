@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useId } from 'react';
 import { MapPin, Navigation, X, Check, Search } from 'lucide-react';
 
 export default function LocationSearchInput({
@@ -11,6 +11,7 @@ export default function LocationSearchInput({
   cityName = 'Mumbai',
   popularLocations = []
 }) {
+  const inputId = useId();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
 
@@ -71,11 +72,11 @@ export default function LocationSearchInput({
   return (
     <div ref={containerRef} className="relative w-full">
       {label && (
-        <label className="block text-xs font-bold text-gray-700 mb-1.5 flex items-center justify-between">
-          <span className="flex items-center gap-1.5">
+        <div className="flex items-center justify-between mb-1.5">
+          <label htmlFor={inputId} className="text-xs font-bold text-gray-700 flex items-center gap-1.5 cursor-pointer">
             <span className={`w-2.5 h-2.5 rounded-full ${dotClasses[dotColor] || 'bg-blue-500'}`}></span>
             <span>{label}</span>
-          </span>
+          </label>
           <button
             type="button"
             onClick={handleCurrentLocation}
@@ -84,11 +85,12 @@ export default function LocationSearchInput({
             <Navigation className="w-3 h-3 text-porter-blue" />
             <span>Use GPS</span>
           </button>
-        </label>
+        </div>
       )}
 
       <div className="relative">
         <input
+          id={inputId}
           type="text"
           value={value}
           onChange={(e) => {

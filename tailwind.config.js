@@ -36,6 +36,14 @@ export default {
           blue: '#4338ca'
         }
       },
+      keyframes: {
+        fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+        scaleUp: { '0%': { opacity: '0', transform: 'scale(0.96)' }, '100%': { opacity: '1', transform: 'scale(1)' } }
+      },
+      animation: {
+        fadeIn: 'fadeIn 0.2s ease-out',
+        scaleUp: 'scaleUp 0.2s ease-out'
+      },
       fontFamily: {
         sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
         display: ['"Outfit"', '"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],

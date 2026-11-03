@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { BRANDING, BrandLogo } from '../config/branding';
@@ -23,6 +23,18 @@ export default function Navbar() {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [servicesDropdownOpen, setServicesDropdownOpen] = useState(false);
   const location = useLocation();
+
+  // Close menus on Escape and whenever the route changes.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') { setServicesDropdownOpen(false); setProfileDropdownOpen(false); setMobileMenuOpen(false); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+  useEffect(() => {
+    setServicesDropdownOpen(false); setProfileDropdownOpen(false); setMobileMenuOpen(false);
+  }, [location.pathname]);
 
   const isActive = (path) => location.pathname === path;
 
@@ -101,9 +113,9 @@ export default function Navbar() {
           </Link>
 
           {/* City Services Dropdown */}
-          <div className="relative">
+          <div className="relative" onMouseLeave={() => setServicesDropdownOpen(false)}>
             <button 
-              onClick={() => setServicesDropdownOpen(!servicesDropdownOpen)}
+              onClick={() => setServicesDropdownOpen(true)}
               onMouseEnter={() => setServicesDropdownOpen(true)}
               className="flex items-center gap-1 hover:text-porter-blue transition py-1"
             >
@@ -112,8 +124,7 @@ export default function Navbar() {
             </button>
 
             {servicesDropdownOpen && (
-              <div 
-                onMouseLeave={() => setServicesDropdownOpen(false)}
+              <div
                 className="absolute top-full left-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 animate-fadeIn"
               >
                 <Link
@@ -177,7 +188,7 @@ export default function Navbar() {
           >
             <Navigation className="w-4 h-4 text-emerald-600" />
             <span>Track Orders</span>
-            {activeBookings.length > 0 && (
+            {activeBookings.some(b => b.status === 'assigned' || b.status === 'in_transit') && (
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
             )}
           </button>

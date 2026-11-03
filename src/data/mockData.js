@@ -175,8 +175,8 @@ export const POPULAR_LOCATIONS = {
 
 export const PROMO_CODES = [
   { code: 'PORTER50', discountPercent: 20, maxDiscount: 50, minFare: 99, description: 'Flat 20% off up to ₹50 on first 3 rides' },
-  { code: 'FIRSTTRUCK', discountPercent: 15, maxDiscount: 150, minFare: 250, description: '15% off up to ₹150 on mini truck bookings' },
-  { code: 'FREEDEL', discountPercent: 50, maxDiscount: 40, minFare: 60, description: '₹40 off on 2-Wheeler delivery' }
+  { code: 'FIRSTTRUCK', discountPercent: 15, maxDiscount: 150, minFare: 250, categories: ['truck'], description: '15% off up to ₹150 on mini truck bookings' },
+  { code: 'FREEDEL', discountPercent: 50, maxDiscount: 40, minFare: 60, categories: ['bike'], description: '50% off up to ₹40 on 2-Wheeler delivery' }
 ];
 
 export const TESTIMONIALS = [

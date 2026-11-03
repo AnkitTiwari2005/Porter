@@ -47,9 +47,10 @@ export default function DriverPortalPage() {
   };
 
   // Find active assigned trip
-  const activeTrip = activeBookings.find(b => b.status === 'in_transit' || b.status === 'assigned') || activeBookings[0];
-  const tripPickupCoord = activeTrip ? getCoordinatesForAddress(activeTrip.pickup) : undefined;
-  const tripDropCoord = activeTrip ? getCoordinatesForAddress(activeTrip.drop) : undefined;
+  // Only genuinely open trips - never fall back to a delivered/cancelled order.
+  const activeTrip = activeBookings.find(b => b.status === 'in_transit' || b.status === 'assigned');
+  const tripPickupCoord = activeTrip ? (activeTrip.pickupCoord || getCoordinatesForAddress(activeTrip.pickup, activeTrip.cityId)) : undefined;
+  const tripDropCoord = activeTrip ? (activeTrip.dropCoord || getCoordinatesForAddress(activeTrip.drop, activeTrip.cityId)) : undefined;
 
   const handleVerifyOtpAndComplete = (e) => {
     e.preventDefault();
@@ -74,6 +75,7 @@ export default function DriverPortalPage() {
 
   // Fast trigger for testing incoming booking
   const handleSimulateNewBooking = () => {
+    if (!driverOnline) return;
     playAlertChime();
     addBooking({
       pickup: 'Andheri West Link Road, Mumbai',
@@ -157,8 +159,16 @@ export default function DriverPortalPage() {
           </div>
         </div>
 
+        {tripCompletedSuccess && (
+          <div className="p-6 bg-emerald-50 border border-emerald-300 rounded-2xl text-center space-y-2 animate-fadeIn">
+            <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto" />
+            <h4 className="text-lg font-bold text-gray-900">Trip Delivered & Completed!</h4>
+            <p className="text-xs text-emerald-800">Fare credited to your driver wallet.</p>
+          </div>
+        )}
+
         {/* ACTIVE TRIP DASHBOARD */}
-        {activeTrip && activeTrip.status !== 'delivered' ? (
+        {driverOnline && activeTrip ? (
           <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm space-y-6">
             <div className="flex items-center justify-between pb-4 border-b border-gray-100">
               <div>
@@ -199,7 +209,10 @@ export default function DriverPortalPage() {
                 </div>
               </div>
               <button
-                onClick={() => setNavStep(prev => prev < 3 ? prev + 1 : 1)}
+                onClick={() => {
+                  if (navStep === 1) updateBookingStatus(activeTrip.orderId, 'in_transit');
+                  setNavStep(prev => prev < 3 ? prev + 1 : 1);
+                }}
                 className="px-3 py-1.5 bg-white border border-blue-300 rounded-xl font-bold text-porter-blue text-xs hover:bg-blue-100"
               >
                 Next Step →
@@ -257,7 +270,7 @@ export default function DriverPortalPage() {
                       Verify Customer Delivery OTP
                     </h4>
                     <p className="text-[11px] text-gray-500">
-                      Enter the 4-digit code provided by the receiver (Customer OTP: <strong className="text-porter-blue">{activeTrip.driver?.otp}</strong>)
+                      Enter the 4-digit code provided by the receiver (the code is shown only on the receiver's phone)
                     </p>
                   </div>
                 </div>
@@ -289,7 +302,7 @@ export default function DriverPortalPage() {
             </div>
             <h3 className="text-base font-bold text-gray-900">No active deliveries pending</h3>
             <p className="text-xs text-gray-500 max-w-sm mx-auto">
-              You are marked as <span className="text-emerald-600 font-bold">Online</span>. Click the button above to simulate a customer booking!
+              You are <span className="font-bold">{driverOnline ? 'Online' : 'Offline'}</span>. {driverOnline ? 'Use the button above to simulate a customer booking.' : 'Go online to receive dispatches.'}
             </p>
           </div>
         )}

@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { BRANDING } from '../config/branding';
-import { POPULAR_LOCATIONS } from '../data/mockData';
+import { getCityLocations, getCoordinatesForAddress } from '../data/geoData';
 import { 
   Home, CheckCircle2, ShieldCheck, Calendar, ArrowRight, 
   Box, Sparkles, Award, Clock, Phone, MapPin, Check 
@@ -10,17 +10,19 @@ import {
 
 export default function PackersMoversPage() {
   const navigate = useNavigate();
-  const { selectedCity, addBooking, setActiveTrackingOrderId } = useApp();
+  const { selectedCity, addBooking, setActiveTrackingOrderId, user, setIsLoginModalOpen } = useApp();
+  const { state } = useLocation();
 
-  const cityLocations = POPULAR_LOCATIONS[selectedCity.id] || POPULAR_LOCATIONS['mumbai'];
+  const cityLocations = getCityLocations(selectedCity.id);
+  const stripCity = (s) => (s || '').replace(new RegExp(`,\\s*${selectedCity.name}\\s*$`, 'i'), '');
 
   const [houseSize, setHouseSize] = useState('1bhk'); // '1rk' | '1bhk' | '2bhk' | '3bhk' | 'few'
-  const [pickup, setPickup] = useState(cityLocations[0]?.name || 'Andheri West');
-  const [drop, setDrop] = useState(cityLocations[1]?.name || 'Powai Hiranandani');
+  const [pickup, setPickup] = useState(stripCity(state?.pickup) || cityLocations[0]?.name || '');
+  const [drop, setDrop] = useState(stripCity(state?.drop) || cityLocations[1]?.name || '');
   const [moveDate, setMoveDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() + 2);
-    return d.toISOString().split('T')[0];
+    return d.toLocaleDateString('en-CA'); // local YYYY-MM-DD (toISOString is UTC and can be a day off in IST)
   });
   const [hasLiftPickup, setHasLiftPickup] = useState(true);
   const [hasLiftDrop, setHasLiftDrop] = useState(true);
@@ -47,6 +49,7 @@ export default function PackersMoversPage() {
 
   const handleBookShifting = (e) => {
     e.preventDefault();
+    if (!user.isLoggedIn) { setIsLoginModalOpen(true); return; }
     const orderId = addBooking({
       pickup: `${pickup}, ${selectedCity.name}`,
       drop: `${drop}, ${selectedCity.name}`,
@@ -57,18 +60,19 @@ export default function PackersMoversPage() {
         icon: '/images/trucks_india_a42dcdfc61.webp'
       },
       fare: estimatedFare,
-      senderName: 'Ankit Sharma',
-      senderPhone: '+91 98765 43210',
-      receiverName: 'Ankit Sharma',
-      receiverPhone: '+91 98765 43210',
-      goodsType: `House Shifting (${currentOption.label})`
+      senderName: user.name,
+      senderPhone: user.phone,
+      receiverName: user.name,
+      receiverPhone: user.phone,
+      goodsType: `House Shifting (${currentOption.label})`,
+      moveDate,
+      pickupCoord: getCoordinatesForAddress(pickup, selectedCity.id),
+      dropCoord: getCoordinatesForAddress(drop, selectedCity.id)
     });
 
     setIsBooked(orderId);
     setActiveTrackingOrderId(orderId);
-    setTimeout(() => {
-      navigate('/track');
-    }, 2000);
+    navigate('/track');
   };
 
   return (
@@ -189,6 +193,7 @@ export default function PackersMoversPage() {
                   <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="date"
+                    min={new Date().toLocaleDateString('en-CA')}
                     value={moveDate}
                     onChange={(e) => setMoveDate(e.target.value)}
                     className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-porter-blue"

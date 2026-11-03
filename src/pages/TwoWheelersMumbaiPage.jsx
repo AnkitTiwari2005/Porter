@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { BRANDING } from '../config/branding';
-import { POPULAR_LOCATIONS, VEHICLES } from '../data/mockData';
+import { VEHICLES } from '../data/mockData';
+import { getCityLocations } from '../data/geoData';
 import { 
   Bike, Zap, ShieldCheck, Clock, CheckCircle2, ArrowRight, 
   MapPin, Sparkles, FileText, ShoppingBag, Key, Package 
@@ -12,7 +13,7 @@ export default function TwoWheelersMumbaiPage() {
   const navigate = useNavigate();
   const { selectedCity, setSelectedCity } = useApp();
 
-  const cityLocations = POPULAR_LOCATIONS[selectedCity.id] || POPULAR_LOCATIONS['mumbai'];
+  const cityLocations = getCityLocations(selectedCity.id);
   const [pickup, setPickup] = useState(cityLocations[0]?.name || '');
   const [drop, setDrop] = useState(cityLocations[1]?.name || '');
   const [useEv, setUseEv] = useState(false);
@@ -57,7 +58,7 @@ export default function TwoWheelersMumbaiPage() {
             </h1>
 
             <p className="text-sm sm:text-base text-emerald-100 max-w-xl leading-relaxed">
-              Send essentials across {selectedCity.name} in minutes. Starting at just ₹42. Ideal for business contracts, forgotten keys, medicines, food packages, and retail consignments.
+              Send essentials across {selectedCity.name} in minutes. Starting at just ₹{fleetTariffs.find(v => v.category === 'bike')?.basePrice || 42}. Ideal for business contracts, forgotten keys, medicines, food packages, and retail consignments.
             </p>
 
             <div className="flex flex-wrap gap-4 pt-2">
@@ -124,7 +125,7 @@ export default function TwoWheelersMumbaiPage() {
                     <span className="text-lg">⚡</span>
                     <div>
                       <p className="text-xs font-bold">Prefer Electric Bike (EV)</p>
-                      <p className="text-[10px] text-gray-500">Save carbon emissions & extra ₹7 base fare</p>
+                      <p className="text-[10px] text-gray-500">Zero tailpipe emissions & ₹7 lower base fare</p>
                     </div>
                   </div>
                   <div className={`w-5 h-5 rounded-md flex items-center justify-center border font-bold text-xs ${
@@ -214,7 +215,7 @@ export default function TwoWheelersMumbaiPage() {
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>Rates starting from just <strong>₹42</strong></span>
+                  <span>Rates starting from just <strong>₹{fleetTariffs.find(v => v.category === 'bike')?.basePrice || 42}</strong></span>
                 </li>
               </ul>
             </div>
