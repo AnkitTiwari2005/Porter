@@ -587,7 +587,7 @@ export default function HomePage() {
 
               <div className="flex items-center gap-6 pt-2">
                 <div className="bg-white p-2.5 rounded-2xl shadow-lg shrink-0">
-                  <img src="/images/qr_code_6ac327e0fa.png" alt="Scan QR" className="w-24 h-24 object-contain" />
+                  <img src="/images/portex-app-qr.png" alt="Scan QR" className="w-24 h-24 object-contain rounded-lg" />
                   <span className="text-[10px] text-gray-800 font-bold block text-center mt-1">Scan to Install</span>
                 </div>
 
