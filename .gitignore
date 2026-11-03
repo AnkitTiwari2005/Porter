@@ -37,3 +37,4 @@ extracted/
 *.zip
 
 .vercel
+.env*
