@@ -11,7 +11,7 @@ import {
 
 export default function TwoWheelersMumbaiPage() {
   const navigate = useNavigate();
-  const { selectedCity, setSelectedCity } = useApp();
+  const { selectedCity, setSelectedCity, fleetTariffs = VEHICLES } = useApp();
 
   const cityLocations = getCityLocations(selectedCity.id);
   const [pickup, setPickup] = useState(cityLocations[0]?.name || '');

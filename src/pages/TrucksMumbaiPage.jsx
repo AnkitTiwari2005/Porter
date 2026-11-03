@@ -9,7 +9,7 @@ import {
 
 export default function TrucksMumbaiPage() {
   const navigate = useNavigate();
-  const { setSelectedCity } = useApp();
+  const { setSelectedCity, fleetTariffs = VEHICLES } = useApp();
 
   const mumbaiLocations = POPULAR_LOCATIONS['mumbai'];
   const [pickup, setPickup] = useState(mumbaiLocations[0].name);
