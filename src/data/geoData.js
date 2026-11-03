@@ -41,6 +41,7 @@ export const CITY_COORDINATES = {
       'DLF Cyber City Gurgaon': [28.4908, 77.0898],
       'Noida Sector 62': [28.6280, 77.3649],
       'Lajpat Nagar': [28.5700, 77.2433],
+      'Guru Nanak Market': [28.5685, 77.2425],
       'Rohini Sector 10': [28.7159, 77.1147],
       'Saket Select Citywalk': [28.5284, 77.2195]
     }

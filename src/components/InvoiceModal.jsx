@@ -81,6 +81,7 @@ export default function InvoiceModal({ isOpen, onClose, order }) {
               <p className="font-bold text-gray-900">{BRANDING.legalName}</p>
               <p className="text-gray-500">GSTIN: {BRANDING.gstin || '— (not configured)'}</p>
               <p className="text-gray-500">CIN: {BRANDING.cin || '— (not configured)'}</p>
+              <p className="text-gray-500">{BRANDING.address}</p>
               <p className="text-gray-500">Helpline: {BRANDING.supportPhone} • {BRANDING.supportEmail}</p>
             </div>
 

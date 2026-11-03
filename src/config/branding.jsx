@@ -9,6 +9,8 @@ export const BRANDING = {
   deliveryAapki: 'Aapka Saman, Hamari Zimmedari',
   legalName: 'Portex Freight Technologies Pvt. Ltd.',
   ownerName: 'Shiv Kukreja',
+  address: '9, Guru Nanak Market, National Park, New Delhi, Delhi 110024',
+  registeredOffice: '9, Guru Nanak Market, National Park, New Delhi, Delhi 110024',
   logo: '/images/portex-emblem.png',
   logoWhite: '/images/portex-emblem.png',
   emblem: '/images/portex-emblem.png',
