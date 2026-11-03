@@ -8,13 +8,14 @@ export const BRANDING = {
   hashtag: '#MoveForward',
   deliveryAapki: 'Aapka Saman, Hamari Zimmedari',
   legalName: 'Portex Freight Technologies Pvt. Ltd.',
+  ownerName: 'Shiv Kukreja',
   logo: '/images/portex-emblem.png',
   logoWhite: '/images/portex-emblem.png',
   emblem: '/images/portex-emblem.png',
   appIcon: '/images/portex-emblem.png',
   appIconPng: '/images/portex-app-icon.png',
-  supportPhone: '1800 572 4000',
-  supportEmail: 'support@portex.in',
+  supportPhone: '+91 98117 97407',
+  supportEmail: 'shivskukreja@gmail.com',
   gstin: '',   // TODO: your real GSTIN
   cin: '',     // TODO: your real CIN
   colors: {
