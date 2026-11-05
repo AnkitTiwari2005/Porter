@@ -1,64 +1,63 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { computeParcel, PARCEL_MAX_KG } from '../utils/pricing';
+import { newIdempotencyKey } from '../lib/api';
+import PaymentModal from '../components/PaymentModal';
 import { 
   Package, Plane, Truck, ShieldCheck, MapPin, 
   Clock, ArrowRight, CheckCircle2, Check, Scale 
 } from 'lucide-react';
 
+const pinOk = (p) => /^[1-9][0-9]{5}$/.test(p);
+
 export default function AllIndiaParcelPage() {
   const navigate = useNavigate();
-  const { addBooking, setActiveTrackingOrderId, user, setIsLoginModalOpen } = useApp();
+  const { selectedCity, user, gstRate, paymentsEnabled, requireLogin, bookOrder } = useApp();
 
-  const [pickupPincode, setPickupPincode] = useState('400001'); // Mumbai
-  const [dropPincode, setDropPincode] = useState('560001');   // Bangalore
+  const [pickupPincode, setPickupPincode] = useState('');
+  const [dropPincode, setDropPincode] = useState('');
   const [weightKg, setWeightKg] = useState(2.5);
   const [serviceMode, setServiceMode] = useState('air'); // 'air' | 'surface'
-  const [isBooked, setIsBooked] = useState(false);
   const [receiverName, setReceiverName] = useState('');
   const [receiverPhone, setReceiverPhone] = useState('');
   const [formError, setFormError] = useState('');
-  const pinOk = (p) => /^[1-9][0-9]{5}$/.test(p);
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [submit, setSubmit] = useState({ busy: false, error: '' });
+  const idem = useRef({ body: '', key: '' });
 
-  const pricing = useMemo(() => {
-    const isAir = serviceMode === 'air';
-    const baseRate = isAir ? 180 : 90;
-    const perKg = isAir ? 65 : 35;
-    const weightCharge = Math.round(weightKg * perKg);
-    const subtotal = baseRate + weightCharge;
-    const gst = Math.round(subtotal * 0.05);
-    const total = subtotal + gst;
-    const eta = isAir ? '24 - 48 Hours' : '3 - 5 Days';
-
-    return { baseRate, weightCharge, gst, total, eta };
-  }, [weightKg, serviceMode]);
+  // Same shared rules the API uses; the API recomputes the price when you book.
+  const priced = useMemo(() => computeParcel({ mode: serviceMode, weightKg, gstRate }), [serviceMode, weightKg, gstRate]);
+  const pricing = { ...priced, baseRate: priced.baseFare };
 
   const handleBookParcel = (e) => {
     e.preventDefault();
-    if (!user.isLoggedIn) { setIsLoginModalOpen(true); return; }
+    if (!user.isLoggedIn) { requireLogin(() => handleBookParcel({ preventDefault() {} })); return; }
+    if (user.role !== 'customer') { setFormError('Please log in with a customer account to book.'); return; }
     if (!pinOk(pickupPincode) || !pinOk(dropPincode)) { setFormError('Enter valid 6-digit pickup and destination pincodes.'); return; }
     if (!receiverName.trim() || !/^[6-9][0-9]{9}$/.test(receiverPhone)) { setFormError('Enter the receiver name and a valid 10-digit mobile number.'); return; }
     setFormError('');
-    const orderId = addBooking({
-      pickup: `Pincode: ${pickupPincode} (Doorstep Pickup)`,
-      drop: `Pincode: ${dropPincode} (All India Destination)`,
-      distance: 980,
-      vehicle: {
-        name: `All India Parcel (${serviceMode === 'air' ? 'Air Priority Express' : 'Surface Express'})`,
-        id: 'intercity-parcel',
-        icon: '/images/trucks_india_a42dcdfc61.webp'
-      },
-      fare: pricing.total,
-      senderName: user.name,
-      senderPhone: user.phone,
-      receiverName: receiverName.trim(),
-      receiverPhone,
-      goodsType: `Intercity Courier Parcel (${weightKg} kg)`
-    });
+    setSubmit({ busy: false, error: '' });
+    setIsPaymentOpen(true);
+  };
 
-    setIsBooked(orderId);
-    setActiveTrackingOrderId(orderId);
-    navigate('/track');
+  const confirmPayment = async (method) => {
+    const payload = {
+      quote: { serviceType: 'parcel', cityId: selectedCity.id, mode: serviceMode, weightKg, pickupPincode, dropPincode },
+      paymentMethod: method, expectedTotal: pricing.total,
+      sender: { name: user.name || 'Customer', phone: user.phone }, receiver: { name: receiverName.trim(), phone: receiverPhone },
+      goodsType: `Intercity courier parcel (${weightKg} kg)`
+    };
+    const body = JSON.stringify(payload);
+    if (idem.current.body !== body) idem.current = { body, key: newIdempotencyKey() };
+    setSubmit({ busy: true, error: '' });
+    try {
+      const { paymentPending } = await bookOrder(payload, idem.current.key);
+      setIsPaymentOpen(false);
+      navigate('/track', { state: { paymentPending } });
+    } catch (err) {
+      setSubmit({ busy: false, error: err.code === 'price_changed' ? `The price changed to ₹${err.details?.total}. Please review and confirm again.` : err.message });
+    }
   };
 
   return (
@@ -78,7 +77,7 @@ export default function AllIndiaParcelPage() {
           <div className="relative z-10 max-w-2xl space-y-4">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-xs font-bold text-indigo-200 border border-white/10">
               <Package className="w-3.5 h-3.5 text-amber-400" />
-              <span>Doorstep Intercity Courier • 19,000+ Pincodes Serviced</span>
+              <span>Doorstep Intercity Courier</span>
             </div>
 
             <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
@@ -86,7 +85,7 @@ export default function AllIndiaParcelPage() {
             </h1>
 
             <p className="text-xs sm:text-sm text-indigo-100 leading-relaxed max-w-xl">
-              Fast, insured intercity shipping covering 19,000+ pincodes. Doorstep pickup with real-time tracking, free packing assistance, and express air delivery across major cities.
+              Intercity shipping with doorstep pickup and status tracking. Choose air for speed or surface for the lowest price. We confirm serviceability for your pincodes after booking.
             </p>
 
             <div className="flex flex-wrap gap-4 pt-2 text-xs">
@@ -96,11 +95,11 @@ export default function AllIndiaParcelPage() {
               </div>
               <div className="flex items-center gap-1.5 font-bold">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span>Live Milestone Tracking</span>
+                <span>Status Tracking</span>
               </div>
               <div className="flex items-center gap-1.5 font-bold">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span>Transit Insurance</span>
+                <span>Prepaid Online Booking</span>
               </div>
             </div>
           </div>
@@ -273,31 +272,24 @@ export default function AllIndiaParcelPage() {
                 </div>
               </div>
 
-              {isBooked ? (
-                <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-2xl text-center space-y-1">
-                  <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
-                  <p className="font-bold text-sm text-gray-900">Booking Placed: #{isBooked}</p>
-                  <p className="text-xs text-gray-500">Redirecting to Live Trip Tracker...</p>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleBookParcel}
-                  className="w-full py-4 bg-porter-blue hover:bg-porter-hover text-white rounded-2xl font-bold text-sm shadow-xl shadow-blue-500/25 flex items-center justify-center gap-2 transition"
-                >
-                  <span>Book Intercity Pickup</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={handleBookParcel}
+                className="w-full py-4 bg-porter-blue hover:bg-porter-hover text-white rounded-2xl font-bold text-sm shadow-xl shadow-blue-500/25 flex items-center justify-center gap-2 transition"
+              >
+                <span>Book Intercity Pickup</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
 
               <div className="flex items-center justify-center gap-1.5 text-[11px] text-gray-400">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>Doorstep pickup with tamper-proof security pouch</span>
+                <span>Free cancellation before pickup</span>
               </div>
             </div>
           </div>
         </div>
       </div>
+      <PaymentModal isOpen={isPaymentOpen} onClose={() => setIsPaymentOpen(false)} total={pricing.total} codAllowed={!paymentsEnabled} onlineAvailable={paymentsEnabled} busy={submit.busy} error={submit.error} onConfirm={confirmPayment} />
     </div>
   );
 }

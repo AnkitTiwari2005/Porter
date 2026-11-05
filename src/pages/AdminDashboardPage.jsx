@@ -1,370 +1,282 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
-import { BRANDING } from '../config/branding';
-import InteractiveMap from '../components/InteractiveMap';
-import { getCoordinatesForAddress } from '../data/geoData';
-import { 
-  Truck, Users, DollarSign, Activity, CheckCircle, 
-  Clock, MapPin, AlertCircle, RefreshCw, Sliders, ShieldCheck, 
-  Search, Download, Trash2, CheckSquare 
-} from 'lucide-react';
+import { api } from '../lib/api';
+import { CITIES } from '../data/mockData';
+import { STATUS_BADGE } from '../components/TrackOrderModal';
+import { Activity, Users, Banknote, CheckCircle, Download, RefreshCw, ShieldCheck } from 'lucide-react';
+
+const card = 'bg-slate-800/60 border border-slate-700/60 rounded-2xl';
+const input = 'px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500';
+const btn = 'px-3 py-1.5 text-[11px] font-bold rounded-lg border transition disabled:opacity-50';
+
+function useAdmin(path, deps = []) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState('');
+  const load = useCallback(async () => {
+    try { setData(await api.get(path)); setError(''); } catch (e) { setError(e.message); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [path, ...deps]);
+  useEffect(() => { load(); }, [load]);
+  return { data, error, reload: load };
+}
+
+function OrdersTab({ onChanged }) {
+  const [status, setStatus] = useState('all');
+  const [q, setQ] = useState('');
+  const [debounced, setDebounced] = useState('');
+  useEffect(() => { const t = setTimeout(() => setDebounced(q), 350); return () => clearTimeout(t); }, [q]);
+  const qs = `status=${status}&q=${encodeURIComponent(debounced)}`;
+  const { data, error, reload } = useAdmin(`/admin/orders?${qs}`);
+  const drivers = useAdmin('/admin/drivers');
+  const [msg, setMsg] = useState('');
+  useEffect(() => { const t = setInterval(reload, 15000); return () => clearInterval(t); }, [reload]);
+
+  const run = async (fn) => { setMsg(''); try { await fn(); await reload(); onChanged(); } catch (e) { setMsg(e.message); } };
+  const assignable = (drivers.data?.drivers || []).filter((d) => d.status === 'approved');
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search order ID, address or sender phone" aria-label="Search orders" className={`${input} w-72`} />
+        <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Filter by status" className={input}>
+          {['all', ...Object.keys(STATUS_BADGE)].map((s) => <option key={s} value={s}>{s === 'all' ? 'All statuses' : STATUS_BADGE[s].label}</option>)}
+        </select>
+        <button onClick={reload} className={`${btn} border-slate-600 text-slate-300 flex items-center gap-1`}><RefreshCw className="w-3 h-3" /> Refresh</button>
+        <a href={api.url(`/admin/orders.csv?${qs}`)} className={`${btn} border-slate-600 text-slate-300 flex items-center gap-1`}><Download className="w-3 h-3" /> Export CSV</a>
+        <span className="text-[11px] text-slate-500 ml-auto">{data?.total ?? 0} orders</span>
+      </div>
+      {(msg || error) && <p role="alert" className="text-xs text-rose-400">{msg || error}</p>}
+      <div className={`${card} overflow-x-auto`}>
+        <table className="w-full text-xs text-left">
+          <thead className="text-[10px] uppercase tracking-wider text-slate-400 border-b border-slate-700"><tr>{['Order', 'Status', 'Route', 'Total', 'Payment', 'Driver', 'Actions'].map((h) => <th key={h} className="px-3 py-2.5 font-bold">{h}</th>)}</tr></thead>
+          <tbody className="divide-y divide-slate-700/60">
+            {(data?.orders || []).map((o) => {
+              const b = STATUS_BADGE[o.status];
+              const open = !['delivered', 'cancelled'].includes(o.status);
+              return (
+                <tr key={o.id} className="align-top">
+                  <td className="px-3 py-2.5 font-mono font-bold">{o.id}<div className="text-[10px] text-slate-500 font-sans">{new Date(o.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div></td>
+                  <td className="px-3 py-2.5"><span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${b.color}`}>{b.label}</span></td>
+                  <td className="px-3 py-2.5 max-w-xs"><div className="truncate">{o.pickup.address}</div><div className="truncate text-slate-400">→ {o.drop.address}</div><div className="text-[10px] text-slate-500">{o.vehicleName}</div></td>
+                  <td className="px-3 py-2.5 font-bold">₹{o.total}</td>
+                  <td className="px-3 py-2.5">{o.paymentMethod === 'cod' ? 'COD' : 'Online'}<div className="text-[10px] text-slate-400">{o.paymentStatus.replace(/_/g, ' ')}</div></td>
+                  <td className="px-3 py-2.5">{o.driver ? <>{o.driver.name}<div className="text-[10px] text-slate-500 font-mono">{o.driver.vehicleNo}</div></> : <span className="text-slate-500">—</span>}</td>
+                  <td className="px-3 py-2.5 space-y-1.5">
+                    {['searching', 'confirmed', 'scheduled', 'assigned'].includes(o.status) && (
+                      <select aria-label={`Assign driver to ${o.id}`} defaultValue="" onChange={(e) => e.target.value && run(() => api.post(`/admin/orders/${o.id}/assign`, { driverId: e.target.value }))} className={`${input} w-36 py-1`}>
+                        <option value="">Assign driver…</option>
+                        {assignable.map((d) => <option key={d.id} value={d.id}>{d.name} · {d.vehicle_id}</option>)}
+                      </select>
+                    )}
+                    <div className="flex flex-wrap gap-1.5">
+                      {open && <button className={`${btn} border-rose-700 text-rose-300 hover:bg-rose-950`} onClick={() => { const reason = window.prompt(`Cancel ${o.id}? Enter a reason (shown in the audit log):`); if (reason && reason.trim().length >= 3) run(() => api.post(`/admin/orders/${o.id}/cancel`, { reason: reason.trim() })); }}>Cancel</button>}
+                      {o.otpAttempts >= 5 && <button className={`${btn} border-amber-700 text-amber-300`} onClick={() => run(() => api.post(`/admin/orders/${o.id}/reset-otp`))}>Reset OTP lock</button>}
+                      {o.status === 'cancelled' && o.paymentStatus === 'refund_pending' && <button className={`${btn} border-indigo-600 text-indigo-300`} onClick={() => run(() => api.post(`/admin/orders/${o.id}/refund`))}>Retry refund</button>}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+            {data && data.orders.length === 0 && <tr><td colSpan={7} className="px-3 py-10 text-center text-slate-500">No orders match.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function DriversTab() {
+  const { data, error, reload } = useAdmin('/admin/drivers');
+  const vehicles = useAdmin('/admin/vehicles');
+  const [form, setForm] = useState({ name: '', phone: '', cityId: 'mumbai', vehicleId: 'tata-ace', vehicleNo: '' });
+  const [msg, setMsg] = useState('');
+  const submit = async (e) => {
+    e.preventDefault(); setMsg('');
+    try { await api.post('/admin/drivers', form); setForm({ ...form, name: '', phone: '', vehicleNo: '' }); reload(); } catch (err) { setMsg(err.message); }
+  };
+  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+  return (
+    <div className="space-y-4">
+      <form onSubmit={submit} className={`${card} p-4 grid grid-cols-2 md:grid-cols-6 gap-2 items-end`}>
+        <input required placeholder="Name" aria-label="Driver name" value={form.name} onChange={set('name')} className={input} />
+        <input required placeholder="Mobile (10 digits)" aria-label="Driver mobile" inputMode="numeric" value={form.phone} onChange={set('phone')} className={input} />
+        <select aria-label="City" value={form.cityId} onChange={set('cityId')} className={input}>{CITIES.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+        <select aria-label="Vehicle" value={form.vehicleId} onChange={set('vehicleId')} className={input}>{(vehicles.data?.vehicles || []).map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}</select>
+        <input required placeholder="Plate e.g. MH02AB1234" aria-label="Vehicle number" value={form.vehicleNo} onChange={set('vehicleNo')} className={input} />
+        <button className={`${btn} bg-indigo-600 border-indigo-500 text-white py-2.5`}>Add driver</button>
+        {(msg || error) && <p role="alert" className="col-span-full text-xs text-rose-400">{msg || error}</p>}
+      </form>
+      <div className={`${card} overflow-x-auto`}>
+        <table className="w-full text-xs text-left">
+          <thead className="text-[10px] uppercase tracking-wider text-slate-400 border-b border-slate-700"><tr>{['Driver', 'City / vehicle', 'Status', 'Online', 'Active', 'Last location', ''].map((h) => <th key={h} className="px-3 py-2.5 font-bold">{h}</th>)}</tr></thead>
+          <tbody className="divide-y divide-slate-700/60">
+            {(data?.drivers || []).map((d) => (
+              <tr key={d.id}>
+                <td className="px-3 py-2.5 font-bold">{d.name}<div className="text-[10px] text-slate-500 font-mono">+91 {d.phone}</div></td>
+                <td className="px-3 py-2.5">{d.city_id} · {d.vehicle_id}<div className="text-[10px] text-slate-500 font-mono">{d.vehicle_no}</div></td>
+                <td className="px-3 py-2.5">{d.status}</td>
+                <td className="px-3 py-2.5">{d.online ? <span className="text-emerald-400 font-bold">Online</span> : <span className="text-slate-500">Offline</span>}</td>
+                <td className="px-3 py-2.5">{d.active_orders}</td>
+                <td className="px-3 py-2.5 text-slate-400">{d.location_at ? new Date(d.location_at).toLocaleTimeString('en-IN') : '—'}</td>
+                <td className="px-3 py-2.5"><button className={`${btn} ${d.status === 'approved' ? 'border-rose-700 text-rose-300' : 'border-emerald-700 text-emerald-300'}`} onClick={async () => { await api.patch(`/admin/drivers/${d.id}`, { status: d.status === 'approved' ? 'suspended' : 'approved' }); reload(); }}>{d.status === 'approved' ? 'Suspend' : 'Reinstate'}</button></td>
+              </tr>
+            ))}
+            {data && data.drivers.length === 0 && <tr><td colSpan={7} className="px-3 py-10 text-center text-slate-500">No drivers yet. Add one above; they log in with their mobile number.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function PricingTab() {
+  const vehicles = useAdmin('/admin/vehicles');
+  const promos = useAdmin('/admin/promos');
+  const [msg, setMsg] = useState('');
+  const [promo, setPromo] = useState({ code: '', discountPercent: 10, maxDiscount: 50, minFare: 0, maxUsesPerUser: '' });
+  const save = async (v, form) => {
+    setMsg('');
+    try { await api.put(`/admin/vehicles/${v.id}`, { basePrice: Number(form.get('basePrice')), ratePerKm: Number(form.get('ratePerKm')), active: form.get('active') === 'on' }); setMsg(`${v.name} saved.`); vehicles.reload(); }
+    catch (e) { setMsg(e.message); }
+  };
+  const addPromo = async (e) => {
+    e.preventDefault(); setMsg('');
+    try {
+      await api.post('/admin/promos', { code: promo.code, discountPercent: Number(promo.discountPercent), maxDiscount: Number(promo.maxDiscount), minFare: Number(promo.minFare), ...(promo.maxUsesPerUser ? { maxUsesPerUser: Number(promo.maxUsesPerUser) } : {}) });
+      setPromo({ ...promo, code: '' }); promos.reload();
+    } catch (err) { setMsg(err.message); }
+  };
+  return (
+    <div className="space-y-5">
+      {msg && <p role="status" className="text-xs text-indigo-300">{msg}</p>}
+      <div className={`${card} p-4 space-y-3`}>
+        <h3 className="text-sm font-bold">Vehicle tariffs <span className="text-[11px] font-normal text-slate-400">· changes apply to new quotes immediately</span></h3>
+        {(vehicles.data?.vehicles || []).map((v) => (
+          <form key={v.id} onSubmit={(e) => { e.preventDefault(); save(v, new FormData(e.currentTarget)); }} className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end text-xs">
+            <div className="md:col-span-2"><p className="font-bold">{v.name}</p><p className="text-[10px] text-slate-500">{v.category} · first {v.base_km} km included</p></div>
+            <label className="text-[10px] text-slate-400">Base ₹<input name="basePrice" type="number" min="0" required defaultValue={v.base_price} className={`${input} w-full mt-0.5`} /></label>
+            <label className="text-[10px] text-slate-400">₹ per km<input name="ratePerKm" type="number" min="0" step="0.5" required defaultValue={v.rate_per_km} className={`${input} w-full mt-0.5`} /></label>
+            <label className="text-[11px] flex items-center gap-1.5 text-slate-300"><input name="active" type="checkbox" defaultChecked={v.active} /> Bookable</label>
+            <button className={`${btn} bg-indigo-600 border-indigo-500 text-white py-2`}>Save</button>
+          </form>
+        ))}
+      </div>
+      <div className={`${card} p-4 space-y-3`}>
+        <h3 className="text-sm font-bold">Coupons</h3>
+        <form onSubmit={addPromo} className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end">
+          <input required placeholder="CODE" aria-label="Coupon code" value={promo.code} onChange={(e) => setPromo({ ...promo, code: e.target.value.toUpperCase() })} className={input} />
+          <label className="text-[10px] text-slate-400">% off<input type="number" min="1" max="100" value={promo.discountPercent} onChange={(e) => setPromo({ ...promo, discountPercent: e.target.value })} className={`${input} w-full mt-0.5`} /></label>
+          <label className="text-[10px] text-slate-400">Max ₹<input type="number" min="0" value={promo.maxDiscount} onChange={(e) => setPromo({ ...promo, maxDiscount: e.target.value })} className={`${input} w-full mt-0.5`} /></label>
+          <label className="text-[10px] text-slate-400">Min fare ₹<input type="number" min="0" value={promo.minFare} onChange={(e) => setPromo({ ...promo, minFare: e.target.value })} className={`${input} w-full mt-0.5`} /></label>
+          <label className="text-[10px] text-slate-400">Uses / user<input type="number" min="1" value={promo.maxUsesPerUser} onChange={(e) => setPromo({ ...promo, maxUsesPerUser: e.target.value })} className={`${input} w-full mt-0.5`} /></label>
+          <button className={`${btn} bg-indigo-600 border-indigo-500 text-white py-2`}>Create</button>
+        </form>
+        <ul className="divide-y divide-slate-700/60 text-xs">
+          {(promos.data?.promos || []).map((p) => (
+            <li key={p.code} className="py-2 flex items-center justify-between gap-3">
+              <span><span className="font-mono font-bold">{p.code}</span> · {p.discount_percent}% up to ₹{p.max_discount}, min ₹{p.min_fare}{p.categories ? ` · ${p.categories.join('/')}` : ''}{p.max_uses_per_user ? ` · ${p.max_uses_per_user}/user` : ''} · used {p.used}×</span>
+              <button className={`${btn} border-slate-600 text-slate-300`} onClick={async () => { await api.patch(`/admin/promos/${p.code}`, { active: !p.active }); promos.reload(); }}>{p.active ? 'Disable' : 'Enable'}</button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function LeadsTab() {
+  const { data, reload } = useAdmin('/admin/leads');
+  return (
+    <div className={`${card} overflow-x-auto`}>
+      <table className="w-full text-xs text-left">
+        <thead className="text-[10px] uppercase tracking-wider text-slate-400 border-b border-slate-700"><tr>{['Company', 'Contact', 'Details', 'Received', 'Status'].map((h) => <th key={h} className="px-3 py-2.5 font-bold">{h}</th>)}</tr></thead>
+        <tbody className="divide-y divide-slate-700/60">
+          {(data?.leads || []).map((l) => (
+            <tr key={l.id}>
+              <td className="px-3 py-2.5 font-bold">{l.company}</td>
+              <td className="px-3 py-2.5">{l.contact}<div className="text-[10px] text-slate-500">+91 {l.phone}{l.email ? ` · ${l.email}` : ''}</div></td>
+              <td className="px-3 py-2.5 text-slate-400">{Object.entries(l.details || {}).map(([k, v]) => `${k}: ${v}`).join(' · ')}</td>
+              <td className="px-3 py-2.5 text-slate-400">{new Date(l.created_at).toLocaleDateString('en-IN')}</td>
+              <td className="px-3 py-2.5"><select aria-label={`Status of ${l.company}`} value={l.status} onChange={async (e) => { await api.patch(`/admin/leads/${l.id}`, { status: e.target.value }); reload(); }} className={`${input} py-1`}>{['new', 'contacted', 'won', 'lost'].map((s) => <option key={s}>{s}</option>)}</select></td>
+            </tr>
+          ))}
+          {data && data.leads.length === 0 && <tr><td colSpan={5} className="px-3 py-10 text-center text-slate-500">No enterprise enquiries yet.</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function AuditTab() {
+  const { data } = useAdmin('/admin/audit');
+  return (
+    <div className={`${card} divide-y divide-slate-700/60 text-xs`}>
+      {(data?.entries || []).map((e) => (
+        <div key={e.id} className="px-4 py-2.5 flex items-center justify-between gap-3">
+          <span><span className="font-mono font-bold">{e.action}</span> <span className="text-slate-400">{e.entity} {e.entity_id}</span></span>
+          <span className="text-slate-500 shrink-0">{new Date(e.created_at).toLocaleString('en-IN')}</span>
+        </div>
+      ))}
+      {data && data.entries.length === 0 && <p className="px-4 py-10 text-center text-slate-500">No admin actions recorded yet.</p>}
+    </div>
+  );
+}
+
+const TABS = [['orders', 'Orders'], ['drivers', 'Drivers'], ['pricing', 'Pricing & coupons'], ['leads', 'Enterprise leads'], ['audit', 'Audit log']];
 
 export default function AdminDashboardPage() {
-  const { activeBookings, selectedCity, fleetTariffs, updateTariff, resetTariffs, updateBookingStatus } = useApp();
-  const [filter, setFilter] = useState('all');
-  const [search, setSearch] = useState('');
-  const [saveSuccess, setSaveSuccess] = useState(false);
+  const { user, authReady, requireLogin, logout } = useApp();
+  const [tab, setTab] = useState('orders');
+  const [tick, setTick] = useState(0);
+  const stats = useAdmin('/admin/stats', [tick]);
+  const isAdmin = user.role === 'admin';
 
-  // Compute stats
-  const todayStr = new Date().toDateString();
-  const totalRevenue = activeBookings
-    .filter(b => b.status !== 'cancelled' && new Date(b.createdAt).toDateString() === todayStr)
-    .reduce((sum, b) => sum + (b.fare || 0), 0);
-  const activeTripsCount = activeBookings.filter(b => b.status === 'in_transit' || b.status === 'assigned').length;
+  if (!authReady) return <div className="min-h-[60vh] flex items-center justify-center text-sm text-gray-400">Loading…</div>;
+  if (!isAdmin) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center">
+        <ShieldCheck className="w-14 h-14 text-gray-300 mb-3" />
+        <h2 className="text-xl font-bold text-gray-800">Admin console</h2>
+        <p className="text-xs text-gray-500 mt-1">{user.isLoggedIn ? 'This account does not have admin access.' : 'Log in with an administrator account.'}</p>
+        {user.isLoggedIn ? <button onClick={logout} className="mt-4 px-6 py-2.5 border border-gray-300 text-xs font-bold rounded-xl">Log out</button> : <button onClick={() => requireLogin()} className="mt-4 px-6 py-2.5 bg-porter-blue text-white text-xs font-bold rounded-xl">Admin login</button>}
+      </div>
+    );
+  }
 
-  const currentLiveOrder = activeBookings.find(b => b.status === 'in_transit' || b.status === 'assigned') || activeBookings[0];
-  const livePickupCoord = currentLiveOrder ? (currentLiveOrder.pickupCoord || getCoordinatesForAddress(currentLiveOrder.pickup, currentLiveOrder.cityId)) : undefined;
-  const liveDropCoord = currentLiveOrder ? (currentLiveOrder.dropCoord || getCoordinatesForAddress(currentLiveOrder.drop, currentLiveOrder.cityId)) : undefined;
-
-  const handleUpdate = (id, field, value) => {
-    updateTariff(id, field, value);
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 2000);
-  };
-
-  const handleExportCSV = () => {
-    const headers = ['Order ID', 'Date', 'Pickup', 'Destination', 'Vehicle', 'Fare (INR)', 'Status', 'Driver', 'Payment'];
-    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const rows = activeBookings.map(b => [
-      b.orderId,
-      new Date(b.createdAt || Date.now()).toISOString().split('T')[0],
-      b.pickup, b.drop, b.vehicleName, b.fare, b.status,
-      b.driver?.name || 'Unassigned',
-      b.paymentStatus || 'UNKNOWN'
-    ].map(esc).join(','));
-
-    // Blob (not a data: URI) so '#', commas and quotes in addresses can't truncate the file.
-    const blob = new Blob([[headers.map(esc).join(','), ...rows].join('\n')], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${BRANDING.name}_Dispatch_Report_${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  const filteredOrders = activeBookings.filter(b => {
-    if (filter !== 'all' && b.status !== filter) return false;
-    if (search && !b.orderId.toLowerCase().includes(search.toLowerCase()) && !b.pickup.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  });
+  const s = stats.data;
+  const active = (s?.byStatus?.assigned || 0) + (s?.byStatus?.in_transit || 0);
+  const kpis = [
+    { icon: Banknote, label: "Today's bookings value", value: s ? `₹${s.today.gmv.toLocaleString('en-IN')}` : '—', sub: s ? `${s.today.orders} orders` : '' },
+    { icon: Activity, label: 'Active trips', value: s ? active : '—', sub: s ? `${s.byStatus.searching || 0} searching for a driver` : '' },
+    { icon: Users, label: 'Drivers online', value: s ? s.drivers.online : '—', sub: s ? `of ${s.drivers.total} registered` : '' },
+    { icon: CheckCircle, label: 'Completion rate', value: s?.completionRate != null ? `${s.completionRate}%` : '—', sub: 'delivered vs cancelled' }
+  ];
 
   return (
     <div className="min-h-screen bg-[#0f172a] text-slate-100 py-8 px-4 sm:px-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-6">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-ping"></span>
-              <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">
-                Operations & Dispatch HQ
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white mt-1">
-              {BRANDING.name} Dispatch Console
-            </h1>
-            <p className="text-xs text-slate-400">
-              Fleet telemetry, live order queue, and dynamic tariff control ({selectedCity.name})
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleExportCSV}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold transition shadow-sm"
-            >
-              <Download className="w-3.5 h-3.5 text-blue-400" />
-              <span>Export CSV</span>
-            </button>
-            <button
-              onClick={() => {
-                setSaveSuccess(true);
-                setTimeout(() => setSaveSuccess(false), 1200);
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-porter-blue hover:bg-blue-600 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-blue-500/20"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>Refresh Queue</span>
-            </button>
-          </div>
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex items-center justify-between">
+          <div><p className="text-xs text-indigo-400 font-bold uppercase tracking-wider">Operations</p><h1 className="text-2xl font-black text-white">Admin console</h1></div>
+          <button onClick={logout} className={`${btn} border-slate-600 text-slate-300`}>Log out</button>
         </div>
-
-        {/* Top 4 KPI Metrics */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-slate-800/90 p-5 rounded-2xl border border-slate-700/80">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-400">Active In-Transit</span>
-              <div className="w-9 h-9 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center">
-                <Truck className="w-5 h-5" />
-              </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {kpis.map((k) => (
+            <div key={k.label} className={`${card} p-4`}>
+              <k.icon className="w-5 h-5 text-indigo-400 mb-2" />
+              <p className="text-2xl font-black">{k.value}</p>
+              <p className="text-[11px] text-slate-400 font-semibold">{k.label}</p>
+              <p className="text-[10px] text-slate-500">{k.sub}</p>
             </div>
-            <p className="text-3xl font-black text-white mt-2">{activeTripsCount}</p>
-            <span className="text-[11px] text-emerald-400 font-semibold mt-1 block">● 98.4% On-time delivery</span>
-          </div>
-
-          <div className="bg-slate-800/90 p-5 rounded-2xl border border-slate-700/80">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-400">Today's Platform GMV</span>
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                <DollarSign className="w-5 h-5" />
-              </div>
-            </div>
-            <p className="text-3xl font-black text-white mt-2">₹{totalRevenue.toLocaleString()}</p>
-            <span className="text-[11px] text-slate-400 font-semibold mt-1 block">Across {selectedCity.name} Hub</span>
-          </div>
-
-          <div className="bg-slate-800/90 p-5 rounded-2xl border border-slate-700/80">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-400">Online Drivers</span>
-              <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
-                <Users className="w-5 h-5" />
-              </div>
-            </div>
-            <p className="text-3xl font-black text-white mt-2">52 Partners</p>
-            <span className="text-[11px] text-purple-300 font-semibold mt-1 block">Ready for Instant Dispatch</span>
-          </div>
-
-          <div className="bg-slate-800/90 p-5 rounded-2xl border border-slate-700/80">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-400">Avg. Arrival ETA</span>
-              <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
-                <Clock className="w-5 h-5" />
-              </div>
-            </div>
-            <p className="text-3xl font-black text-white mt-2">12.4 Mins</p>
-            <span className="text-[11px] text-amber-300 font-semibold mt-1 block">Standard city dispatch</span>
-          </div>
+          ))}
         </div>
-
-        {/* Live Map Telemetry & Active Fleet Radar */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-8 bg-slate-800/90 rounded-2xl p-5 border border-slate-700/80 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Activity className="w-4 h-4 text-blue-400" />
-                <span>Live Fleet Routing & Telemetry Radar</span>
-              </h3>
-              <span className="text-[11px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2.5 py-0.5 rounded-full font-mono">
-                TELEMETRY ACTIVE
-              </span>
-            </div>
-
-            <InteractiveMap
-              pickupCoord={livePickupCoord}
-              dropCoord={liveDropCoord}
-              pickupLabel={currentLiveOrder?.pickup || 'Pickup'}
-              dropLabel={currentLiveOrder?.drop || 'Destination'}
-              height="360px"
-              vehicleProgress={0.65}
-            />
-          </div>
-
-          <div className="lg:col-span-4 bg-slate-800/90 rounded-2xl p-5 border border-slate-700/80 space-y-4 flex flex-col justify-between">
-            <div>
-              <h3 className="text-sm font-bold text-white mb-3">Active Fleet Partners</h3>
-              <div className="space-y-3">
-                {[
-                  { name: 'Rameshwar Yadav', vehicle: 'Tata Ace', plate: 'MH 02 EE 7418', status: 'In Transit', rating: 4.9 },
-                  { name: 'Farhan Shaikh', vehicle: '3 Wheeler', plate: 'MH 01 DE 3319', status: 'Available', rating: 4.8 },
-                  { name: 'Kavita Shinde', vehicle: '2-Wheeler EV', plate: 'MH 03 BK 9001', status: 'In Transit', rating: 5.0 },
-                  { name: 'Satish Patel', vehicle: 'Pickup 8ft', plate: 'MH 04 ER 5521', status: 'Available', rating: 4.7 }
-                ].map((d, i) => (
-                  <div key={i} className="p-3 bg-slate-900 rounded-xl border border-slate-700/60 flex items-center justify-between text-xs">
-                    <div>
-                      <p className="font-bold text-white">{d.name}</p>
-                      <p className="text-[11px] text-slate-400 font-mono">{d.vehicle} • {d.plate}</p>
-                    </div>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      d.status === 'Available' ? 'bg-emerald-900/60 text-emerald-400 border border-emerald-800' : 'bg-blue-950 text-blue-400 border border-blue-800'
-                    }`}>
-                      {d.status}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="p-3 bg-slate-900 rounded-xl border border-slate-700/50 text-[11px] text-slate-400">
-              💡 Any trip booked by customer on Homepage or Fare Estimator automatically dispatches here.
-            </div>
-          </div>
+        <div role="tablist" className="flex gap-1 bg-slate-900 p-1 rounded-xl w-fit overflow-x-auto">
+          {TABS.map(([id, label]) => <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${tab === id ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}>{label}</button>)}
         </div>
-
-        {/* Live Orders Dispatch Table */}
-        <div className="bg-slate-800/90 rounded-2xl p-6 border border-slate-700/80 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h3 className="text-base font-bold text-white">Live Dispatch Queue</h3>
-              <p className="text-xs text-slate-400">Real customer orders synced in real-time</p>
-            </div>
-
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search order ID or address"
-              className="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder:text-slate-500 w-full sm:w-64"
-            />
-
-            {/* Filter buttons */}
-            <div className="flex items-center gap-1.5 bg-slate-900 p-1 rounded-xl text-xs font-semibold text-slate-400">
-              {['all', 'in_transit', 'assigned', 'delivered', 'cancelled'].map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  className={`px-3 py-1 rounded-lg capitalize transition ${
-                    filter === f ? 'bg-porter-blue text-white font-bold' : 'hover:text-white'
-                  }`}
-                >
-                  {f.replace('_', ' ')}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-slate-900/90 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-700">
-                <tr>
-                  <th className="py-3 px-4">Order ID</th>
-                  <th className="py-3 px-4">Pickup & Destination</th>
-                  <th className="py-3 px-4">Vehicle</th>
-                  <th className="py-3 px-4">Fare</th>
-                  <th className="py-3 px-4">Driver Partner</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right">Quick Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-700/60">
-                {filteredOrders.map((b) => (
-                  <tr key={b.orderId} className="hover:bg-slate-700/40 transition">
-                    <td className="py-3 px-4 font-mono font-bold text-blue-400">{b.orderId}</td>
-                    <td className="py-3 px-4 max-w-xs truncate">
-                      <span className="block font-semibold text-white">{b.pickup}</span>
-                      <span className="text-[11px] text-slate-400">➔ {b.drop}</span>
-                    </td>
-                    <td className="py-3 px-4 font-medium text-slate-200">{b.vehicleName}</td>
-                    <td className="py-3 px-4 font-bold text-white">₹{b.fare}</td>
-                    <td className="py-3 px-4">
-                      <span className="block font-semibold text-white">{b.driver?.name}</span>
-                      <span className="text-[10px] text-slate-400 font-mono">{b.driver?.vehicleNo}</span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        b.status === 'delivered' 
-                          ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' 
-                          : 'bg-blue-950 text-blue-400 border border-blue-800'
-                      }`}>
-                        {b.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {(b.status === 'assigned' || b.status === 'in_transit') && (
-                          <button
-                            onClick={() => updateBookingStatus(b.orderId, 'delivered')}
-                            title="Force Mark Delivered"
-                            className="p-1.5 bg-emerald-900/60 hover:bg-emerald-800 text-emerald-300 rounded-lg text-xs"
-                          >
-                            <CheckSquare className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => window.confirm(`Cancel order ${b.orderId}?`) && updateBookingStatus(b.orderId, 'cancelled')}
-                          title="Cancel Order"
-                          className="p-1.5 bg-rose-900/60 hover:bg-rose-800 text-rose-300 rounded-lg text-xs"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Dynamic Tariff & Rate Configurator */}
-        <div className="bg-slate-800/90 rounded-2xl p-6 border border-slate-700/80 space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Sliders className="w-4 h-4 text-blue-400" />
-                <span>Dynamic Fleet Tariff Configurator</span>
-              </h3>
-              <p className="text-xs text-slate-400">
-                Adjust base fares and per-kilometer rates for {selectedCity.name}. Updates recalculate customer estimates in real-time.
-              </p>
-            </div>
-
-            <button
-              onClick={resetTariffs}
-              className="px-3 py-1 text-xs font-bold text-slate-300 bg-slate-900 border border-slate-700 rounded-xl hover:bg-slate-700"
-            >
-              Reset to defaults
-            </button>
-
-            {saveSuccess && (
-              <span className="text-xs font-bold text-emerald-400 bg-emerald-950 border border-emerald-800 px-3 py-1 rounded-xl flex items-center gap-1.5 animate-fadeIn">
-                <CheckCircle className="w-3.5 h-3.5" /> Rate Updated in Real-Time!
-              </span>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {fleetTariffs.map((v) => (
-              <div key={v.id} className="p-4 bg-slate-900 rounded-xl border border-slate-700 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-white">{v.name}</span>
-                  <span className="text-[10px] text-blue-400 font-semibold">{v.capacity}</span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <label className="text-[10px] text-slate-400 uppercase font-bold block mb-1">
-                      Base Fare (₹)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      key={`${v.id}-base-${v.basePrice}`}
-                      defaultValue={v.basePrice}
-                      onBlur={(e) => handleUpdate(v.id, 'basePrice', e.target.value)}
-                      className="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono font-bold"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-slate-400 uppercase font-bold block mb-1">
-                      Per KM Rate (₹)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.5"
-                      min="0"
-                      key={`${v.id}-rate-${v.ratePerKm}`}
-                      defaultValue={v.ratePerKm}
-                      onBlur={(e) => handleUpdate(v.id, 'ratePerKm', e.target.value)}
-                      className="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono font-bold"
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        {tab === 'orders' && <OrdersTab onChanged={() => setTick((t) => t + 1)} />}
+        {tab === 'drivers' && <DriversTab />}
+        {tab === 'pricing' && <PricingTab />}
+        {tab === 'leads' && <LeadsTab />}
+        {tab === 'audit' && <AuditTab />}
       </div>
     </div>
   );

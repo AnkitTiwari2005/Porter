@@ -1,318 +1,236 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Link, useParams, useLocation } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { BRANDING } from '../config/branding';
+import { api } from '../lib/api';
 import InteractiveMap from '../components/InteractiveMap';
-import InvoiceModal from '../components/InvoiceModal';
-import { getCoordinatesForAddress } from '../data/geoData';
-import { 
-  Navigation, Truck, Phone, ShieldCheck, MapPin, 
-  Clock, CheckCircle, AlertTriangle, ArrowLeft, Share2, HelpCircle, 
-  FileText, Play, Pause, CheckCircle2 
-} from 'lucide-react';
-import { Link, useParams } from 'react-router-dom';
+import { STATUS_BADGE } from '../components/TrackOrderModal';
+import { Truck, Phone, ShieldCheck, MapPin, ArrowLeft, Share2, FileText, CheckCircle2, AlertTriangle, CreditCard, XCircle, Loader2 } from 'lucide-react';
+
+const STEPS = ['Booked', 'Driver assigned', 'On the way', 'Delivered'];
+const stepIndex = (s) => ({ pending_payment: -1, scheduled: 0, confirmed: 0, searching: 0, assigned: 1, in_transit: 2, delivered: 3 }[s] ?? 0);
+const EVENT_LABEL = {
+  created: 'Order placed', payment_paid: 'Payment received', dispatch_started: 'Finding a driver', offer_sent: 'Offered to a nearby driver',
+  driver_assigned: 'Driver assigned', admin_assigned: 'Driver assigned by support', picked_up: 'Goods picked up', delivered: 'Delivered', cancelled: 'Order cancelled'
+};
+
+// Live order: an initial fetch, then Server-Sent Events for status and driver GPS, with slow polling as a safety net.
+function useOrderLive(orderId) {
+  const [order, setOrder] = useState(null);
+  const [error, setError] = useState('');
+  const [driverPos, setDriverPos] = useState(null);
+
+  const load = useCallback(async () => {
+    try { setOrder((await api.get(`/orders/${orderId}`)).order); setError(''); }
+    catch (e) { setError(e.message); }
+  }, [orderId]);
+
+  useEffect(() => {
+    if (!orderId) return undefined;
+    setOrder(null); setDriverPos(null); load();
+    let es;
+    if (typeof EventSource !== 'undefined') {
+      es = new EventSource(api.url(`/orders/${orderId}/stream`), { withCredentials: true });
+      es.addEventListener('order', (e) => setOrder((o) => ({ ...(o || {}), ...JSON.parse(e.data) })));
+      es.addEventListener('driver_location', (e) => { const d = JSON.parse(e.data); setDriverPos([d.lat, d.lng]); });
+    }
+    const poll = setInterval(load, 20000);
+    return () => { es?.close(); clearInterval(poll); };
+  }, [orderId, load]);
+
+  return { order, error, driverPos, reload: load };
+}
 
 export default function OrderTrackingPage() {
-  const { activeBookings, activeTrackingOrderId, setActiveTrackingOrderId, updateBookingStatus } = useApp();
-  const { orderId: routeOrderId } = useParams();
+  const { orders, ordersLoading, activeTrackingOrderId, setActiveTrackingOrderId, user, requireLogin, cancelOrder, payPending, refreshOrders } = useApp();
+  const { orderId: routeId } = useParams();
+  const { state } = useLocation();
+  const orderId = routeId || activeTrackingOrderId || orders[0]?.id;
+  const { order, error, driverPos, reload } = useOrderLive(user.isLoggedIn ? orderId : null);
+  const [busy, setBusy] = useState('');
+  const [notice, setNotice] = useState(state?.paymentPending ? 'Your booking is saved but not paid yet. Complete the payment to start looking for a driver.' : '');
   const [copied, setCopied] = useState(false);
-  const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [simulatedProgress, setSimulatedProgress] = useState(null);
 
-  const order = activeBookings.find(b => b.orderId === (routeOrderId || activeTrackingOrderId))
-    || (routeOrderId ? undefined : activeBookings[0]);
-  const pickupCoord = order ? (order.pickupCoord || getCoordinatesForAddress(order.pickup, order.cityId)) : [19.1197, 72.8464];
-  const dropCoord = order ? (order.dropCoord || getCoordinatesForAddress(order.drop, order.cityId)) : [19.0664, 72.8687];
+  useEffect(() => { if (routeId) setActiveTrackingOrderId(routeId); }, [routeId, setActiveTrackingOrderId]);
 
-  const handleShare = async () => {
-    const url = `${window.location.origin}/track/${order.orderId}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      window.prompt('Copy tracking link:', url);
-    }
+  const run = async (name, fn) => {
+    setBusy(name); setNotice('');
+    try { await fn(); await reload(); await refreshOrders(); }
+    catch (e) { if (!e.dismissed) setNotice(e.message); }
+    finally { setBusy(''); }
   };
 
-  // Demo simulator: advances the marker, stops just short of the destination.
-  // Delivery itself is completed only by the driver's OTP check, never by the simulation.
-  const baseProgress = order ? (order.progress ?? 60) / 100 : 0.6;
-  useEffect(() => {
-    if (!isSimulating) return undefined;
-    const id = setInterval(() => {
-      setSimulatedProgress((p) => Math.min(0.95, (p ?? baseProgress) + 0.05));
-    }, 1500);
-    return () => clearInterval(id);
-  }, [isSimulating, baseProgress]);
+  const pickup = useMemo(() => (order?.pickup?.lat != null ? [order.pickup.lat, order.pickup.lng] : null), [order]);
+  const drop = useMemo(() => (order?.drop?.lat != null ? [order.drop.lat, order.drop.lng] : null), [order]);
+  const driverCoord = driverPos || (order?.driver?.lat != null && ['assigned', 'in_transit'].includes(order.status) ? [order.driver.lat, order.driver.lng] : null);
 
-  useEffect(() => {
-    if (isSimulating && simulatedProgress !== null && simulatedProgress >= 0.95) setIsSimulating(false);
-  }, [isSimulating, simulatedProgress]);
-
+  if (!user.isLoggedIn) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center">
+        <Truck className="w-14 h-14 text-gray-300 mb-3" />
+        <h2 className="text-xl font-bold text-gray-800">Log in to track your orders</h2>
+        <button onClick={() => requireLogin()} className="mt-4 px-6 py-2.5 bg-porter-blue text-white text-xs font-bold rounded-xl">Log in</button>
+      </div>
+    );
+  }
+  if (!orderId) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center">
+        <Truck className="w-14 h-14 text-gray-300 mb-3" />
+        <h2 className="text-xl font-bold text-gray-800">{ordersLoading ? 'Loading your orders…' : 'No orders yet'}</h2>
+        {!ordersLoading && <Link to="/fare-estimate" className="mt-4 px-6 py-2.5 bg-porter-blue text-white text-xs font-bold rounded-xl">Get a fare estimate</Link>}
+      </div>
+    );
+  }
   if (!order) {
     return (
-      <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center p-6 text-center">
-        <Truck className="w-16 h-16 text-gray-300 mb-4" />
-        <h2 className="text-xl font-bold text-gray-800">No active trips found</h2>
-        <p className="text-xs text-gray-500 mt-1 max-w-sm">
-          You don't have any in-progress consignments right now. Check out the fare estimate calculator to book your vehicle!
-        </p>
-        <Link
-          to="/fare-estimate"
-          className="mt-5 px-6 py-2.5 bg-porter-blue text-white rounded-xl text-xs font-bold hover:bg-porter-hover transition shadow-md shadow-blue-500/20"
-        >
-          Book a Mini Truck or Bike
-        </Link>
+      <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center">
+        {error ? <><AlertTriangle className="w-10 h-10 text-rose-400 mb-2" /><p className="text-sm text-rose-600">{error}</p><Link to="/" className="mt-3 text-xs text-porter-blue font-bold">Back to home</Link></> : <Loader2 className="w-8 h-8 text-gray-300 animate-spin" />}
       </div>
     );
   }
 
-  const isDelivered = order.status === 'delivered';
-  const isCancelled = order.status === 'cancelled';
-  const isInTransit = order.status === 'in_transit';
-  const effectiveProgress = isDelivered ? 1.0 : (simulatedProgress ?? baseProgress);
+  const badge = STATUS_BADGE[order.status] || STATUS_BADGE.searching;
+  const idx = stepIndex(order.status);
+  const cancelled = order.status === 'cancelled';
+  const canCancel = ['pending_payment', 'scheduled', 'confirmed', 'searching', 'assigned'].includes(order.status);
+  const shareUrl = `${window.location.origin}/t/${order.trackToken}`;
+
+  const share = async () => {
+    try { await navigator.clipboard.writeText(shareUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); }
+    catch { window.prompt('Copy tracking link:', shareUrl); }
+  };
 
   return (
     <div className="min-h-screen bg-[#f8fafc] py-8 px-4 sm:px-8">
       <div className="max-w-6xl mx-auto space-y-6">
-        {/* Top bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Link to="/" className="p-2 rounded-xl bg-white border border-gray-200 text-gray-600 hover:text-gray-900 transition shadow-sm">
-              <ArrowLeft className="w-4 h-4" />
-            </Link>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-black text-gray-900">
-                  Tracking Order #{order.orderId}
-                </h1>
-                <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${
-                  isDelivered 
-                    ? 'bg-emerald-100 text-emerald-800 border-emerald-200' 
-                    : 'bg-blue-100 text-porter-blue border-blue-200'
-                }`}>
-                  {isDelivered ? '✓ Delivered' : 'GPS Telemetry Active'}
-                </span>
-              </div>
-              <p className="text-xs text-gray-500">
-                Booked via {BRANDING.name} Logistics • {order.vehicleName}
-              </p>
-            </div>
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+          <div>
+            <Link to="/" className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-porter-blue mb-2"><ArrowLeft className="w-3.5 h-3.5" /> Home</Link>
+            <h1 className="text-xl sm:text-2xl font-black text-gray-900 flex items-center gap-3 flex-wrap">
+              Order {order.id}
+              <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${badge.color}`}>{badge.label}</span>
+            </h1>
+            <p className="text-xs text-gray-500 mt-1">{order.vehicleName}</p>
           </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Live Movement Simulation Button */}
-            {!isDelivered && (
-              <button
-                onClick={() => setIsSimulating(!isSimulating)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition shadow-sm ${
-                  isSimulating 
-                    ? 'bg-amber-100 text-amber-900 border border-amber-300' 
-                    : 'bg-blue-50 text-porter-blue border border-blue-200 hover:bg-blue-100'
-                }`}
-              >
-                {isSimulating ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-                <span>{isSimulating ? 'Pause GPS Sim' : 'Simulate Vehicle Movement'}</span>
-              </button>
+          <div className="flex gap-2">
+            <button onClick={share} className="px-3.5 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 hover:border-porter-blue flex items-center gap-1.5">
+              <Share2 className="w-3.5 h-3.5" /> {copied ? 'Link copied' : 'Share tracking link'}
+            </button>
+            {order.status === 'delivered' && (
+              <a href={api.url(`/orders/${order.id}/invoice.pdf`)} className="px-3.5 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 hover:border-porter-blue flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5" /> Invoice (PDF)
+              </a>
             )}
-
-            <button
-              onClick={() => setIsInvoiceOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 transition shadow-sm"
-            >
-              <FileText className="w-3.5 h-3.5 text-gray-500" />
-              <span>Tax Invoice</span>
-            </button>
-
-            <button
-              onClick={handleShare}
-              className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 transition shadow-sm"
-            >
-              <Share2 className="w-3.5 h-3.5 text-gray-500" />
-              <span>{copied ? 'Link Copied!' : 'Share Live Tracking'}</span>
-            </button>
           </div>
         </div>
 
-        {/* Multi-Order Tabs */}
-        {activeBookings.length > 1 && (
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
-            <span className="text-xs font-semibold text-gray-400 shrink-0">Your Active Trips:</span>
-            {activeBookings.map(b => (
-              <button
-                key={b.orderId}
-                onClick={() => { setActiveTrackingOrderId(b.orderId); setIsSimulating(false); setSimulatedProgress(null); }}
-                className={`text-xs px-3 py-1.5 rounded-xl font-bold border transition shrink-0 ${
-                  b.orderId === order.orderId
-                    ? 'bg-porter-blue text-white border-porter-blue shadow-sm'
-                    : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                {b.orderId} • {b.vehicleName.replace(/\s*\(.*\)$/, '')} (₹{b.fare})
+        {orders.length > 1 && (
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {orders.map((o) => (
+              <button key={o.id} onClick={() => setActiveTrackingOrderId(o.id)} className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border transition ${o.id === order.id ? 'bg-porter-blue text-white border-porter-blue' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
+                {o.id} · ₹{o.total}
               </button>
             ))}
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Column: Live OpenStreetMap Route Visualizer */}
-          <div className="lg:col-span-8 space-y-6">
-            <div className="bg-white rounded-3xl p-5 border border-gray-200 shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
-                  <Navigation className="w-4 h-4 text-porter-blue animate-pulse" />
-                  <span>Real-time GPS Map Telemetry</span>
-                </span>
-                <span className="text-[11px] font-mono text-gray-500 bg-gray-100 px-2.5 py-0.5 rounded-full">
-                  {isDelivered 
-                    ? 'Trip Completed' 
-                    : `Speed: ~28 km/h • ETA: ${Math.max(2, Math.round((1 - effectiveProgress) * 20))} mins`}
-                </span>
-              </div>
+        {notice && <div role="alert" className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 font-medium">{notice}</div>}
 
-              {/* Real Leaflet Map */}
-              <InteractiveMap
-                pickupCoord={pickupCoord}
-                dropCoord={dropCoord}
-                pickupLabel={order.pickup}
-                dropLabel={order.drop}
-                vehicleProgress={effectiveProgress}
-                height="340px"
-              />
-
-              {/* Waypoint Details */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-xs">
-                <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-2xl">
-                  <span className="text-[10px] uppercase font-bold text-emerald-800 block">Pickup Location</span>
-                  <p className="font-semibold text-gray-800 truncate">{order.pickup}</p>
-                </div>
-                <div className="p-3 bg-rose-50/70 border border-rose-200 rounded-2xl">
-                  <span className="text-[10px] uppercase font-bold text-rose-800 block">Destination</span>
-                  <p className="font-semibold text-gray-800 truncate">{order.drop}</p>
-                </div>
-              </div>
+        {order.status === 'pending_payment' && (
+          <div className="p-4 bg-white border border-amber-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold text-gray-900">Payment pending</p>
+              <p className="text-xs text-gray-500">We start looking for a driver as soon as your payment of ₹{order.total} is confirmed.</p>
             </div>
+            <button disabled={!!busy} onClick={() => run('pay', () => payPending(order.id))} className="px-5 py-2.5 bg-porter-blue disabled:opacity-60 text-white text-xs font-bold rounded-xl flex items-center gap-2">
+              {busy === 'pay' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />} Pay ₹{order.total}
+            </button>
+          </div>
+        )}
 
-            {/* Trip Milestones */}
-            <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-4">
-              <h3 className="text-sm font-bold text-gray-900">Trip Milestones</h3>
-
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
-                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 space-y-1">
-                  <span className="font-bold flex items-center gap-1">
-                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>1. Booked</span>
-                  </span>
-                  <p className="text-[11px] text-emerald-700">Order Confirmed</p>
-                </div>
-
-                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 space-y-1">
-                  <span className="font-bold flex items-center gap-1">
-                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>2. Assigned</span>
-                  </span>
-                  <p className="text-[11px] text-emerald-700">{order.driver?.name}</p>
-                </div>
-
-                <div className={`p-3 rounded-xl border space-y-1 ${
-                  isDelivered 
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
-                    : 'bg-blue-50 border-porter-blue text-porter-blue ring-2 ring-blue-500/20'
-                }`}>
-                  <span className="font-black flex items-center gap-1">
-                    <Truck className={`w-3.5 h-3.5 text-porter-blue ${!isDelivered ? 'animate-pulse' : ''}`} />
-                    <span>3. In Transit</span>
-                  </span>
-                  <p className="text-[11px] text-blue-700">
-                    {isDelivered ? 'Completed' : `Moving (${Math.round(effectiveProgress * 100)}%)`}
-                  </p>
-                </div>
-
-                <div className={`p-3 rounded-xl border space-y-1 ${
-                  isDelivered 
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800 ring-2 ring-emerald-500/20' 
-                    : 'bg-gray-50 border-gray-200 text-gray-400'
-                }`}>
-                  <span className="font-bold flex items-center gap-1">
-                    <CheckCircle className={`w-3.5 h-3.5 ${isDelivered ? 'text-emerald-600' : 'text-gray-300'}`} />
-                    <span>4. Delivered</span>
-                  </span>
-                  <p className="text-[11px]">{isDelivered ? 'OTP Verified ✓' : 'Requires OTP'}</p>
-                </div>
-              </div>
+        {cancelled ? (
+          <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-sm text-rose-800 flex items-start gap-3">
+            <XCircle className="w-5 h-5 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold">This order was cancelled{order.cancelledBy === 'system' ? ' because no driver was available' : ''}.</p>
+              {order.paymentStatus === 'refunded' && <p className="text-xs mt-1">Your payment has been refunded to the original payment method.</p>}
+              {order.paymentStatus === 'refund_pending' && <p className="text-xs mt-1">Your refund is being processed. It can take a few working days to appear.</p>}
             </div>
           </div>
+        ) : (
+          <ol className="grid grid-cols-4 gap-2" aria-label="Order progress">
+            {STEPS.map((label, i) => (
+              <li key={label} className="text-center">
+                <div className={`h-1.5 rounded-full ${i <= idx ? 'bg-porter-blue' : 'bg-gray-200'}`} />
+                <p className={`mt-1.5 text-[11px] font-semibold ${i <= idx ? 'text-gray-900' : 'text-gray-400'}`}>{label}</p>
+              </li>
+            ))}
+          </ol>
+        )}
 
-          {/* Right Column: Driver Details & Delivery OTP */}
-          <div className="lg:col-span-4 space-y-6">
-            {order.driver && (
-              <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm space-y-5">
-                <h3 className="text-sm font-bold text-gray-900 pb-3 border-b border-gray-100">
-                  Assigned Driver Partner
-                </h3>
-
-                <div className="flex items-center gap-3.5">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-black text-xl flex items-center justify-center shadow-md shadow-blue-500/20">
-                    {order.driver.name.charAt(0)}
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-gray-900">{order.driver.name}</h4>
-                    <p className="text-xs text-gray-500 font-mono mt-0.5">{order.vehicleName}</p>
-                    <div className="flex items-center gap-1 mt-1 text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded w-fit border border-amber-200">
-                      ★ {order.driver.rating} (Verified Partner)
-                    </div>
-                  </div>
-                </div>
-
-                {/* Registration plate & OTP box */}
-                <div className="grid grid-cols-2 gap-3 pt-2">
-                  <div className="p-3 bg-gray-50 rounded-2xl border border-gray-200 text-center">
-                    <span className="text-[10px] uppercase font-bold text-gray-400 block">Vehicle Plate</span>
-                    <span className="text-xs font-mono font-black text-gray-800">{order.driver.vehicleNo}</span>
-                  </div>
-
-                  <div className="p-3 bg-blue-50/70 rounded-2xl border border-blue-200 text-center">
-                    <span className="text-[10px] uppercase font-bold text-porter-blue block">Delivery OTP</span>
-                    <span className="text-base font-mono font-black text-porter-blue">{order.driver.otp}</span>
-                  </div>
-                </div>
-
-                {/* Call driver */}
-                <a
-                  href={`tel:${order.driver.phone}`}
-                  className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition"
-                >
-                  <Phone className="w-4 h-4" />
-                  <span>Call {order.driver.name}</span>
-                </a>
-
-                <div className="pt-4 border-t border-gray-100 space-y-2 text-xs">
-                  <div className="flex justify-between text-gray-600">
-                    <span>Trip Fare:</span>
-                    <span className="font-bold text-gray-900">₹{order.fare}</span>
-                  </div>
-                  <div className="flex justify-between text-gray-600">
-                    <span>Payment Mode:</span>
-                    <span className="font-bold text-emerald-600">{order.paymentMethod || 'Razorpay Verified ✓'}</span>
-                  </div>
-                  <div className="flex justify-between text-gray-600">
-                    <span>Consignment:</span>
-                    <span className="font-bold text-gray-900 truncate max-w-[160px]">{order.goodsType || 'Commercial Cargo'}</span>
-                  </div>
-                </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="lg:col-span-8 space-y-4">
+            {pickup && drop && (
+              <InteractiveMap pickupCoord={pickup} dropCoord={drop} routeLine={order.route} driverCoord={driverCoord} pickupLabel={order.pickup.address} dropLabel={order.drop.address} driverLabel={order.driver?.name || 'Driver'} height="380px" />
+            )}
+            <div className="bg-white p-5 rounded-2xl border border-gray-200 grid sm:grid-cols-2 gap-4 text-xs">
+              <div className="flex gap-2.5"><MapPin className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" /><div><p className="text-gray-400 font-semibold">Pickup</p><p className="font-semibold text-gray-800">{order.pickup.address}</p></div></div>
+              <div className="flex gap-2.5"><MapPin className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" /><div><p className="text-gray-400 font-semibold">Drop</p><p className="font-semibold text-gray-800">{order.drop.address}</p></div></div>
+            </div>
+            {order.events?.length > 0 && (
+              <div className="bg-white p-5 rounded-2xl border border-gray-200">
+                <h3 className="text-sm font-bold text-gray-900 mb-3">Activity</h3>
+                <ul className="space-y-2.5">
+                  {order.events.filter((e) => EVENT_LABEL[e.type]).map((e, i) => (
+                    <li key={i} className="flex items-start gap-3 text-xs">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                      <span className="font-semibold text-gray-800">{EVENT_LABEL[e.type]}</span>
+                      <span className="text-gray-400 ml-auto">{new Date(e.at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
           </div>
+
+          <div className="lg:col-span-4 space-y-4">
+            {order.driver && !cancelled && (
+              <div className="bg-white p-5 rounded-2xl border border-gray-200 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-full bg-blue-100 text-porter-blue font-black flex items-center justify-center">{order.driver.name?.charAt(0)}</div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-900">{order.driver.name}</p>
+                    <p className="text-xs text-gray-500">★ {Number(order.driver.rating).toFixed(1)} · <span className="font-mono">{order.driver.vehicleNo}</span></p>
+                  </div>
+                </div>
+                {order.driver.phone && <a href={`tel:+91${order.driver.phone}`} className="w-full py-2.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold flex items-center justify-center gap-2"><Phone className="w-3.5 h-3.5" /> Call driver</a>}
+              </div>
+            )}
+
+            {order.deliveryOtp && !cancelled && order.status !== 'pending_payment' && (
+              <div className="bg-amber-50 p-5 rounded-2xl border border-amber-200">
+                <p className="text-[11px] font-bold text-amber-800 uppercase tracking-wide">Delivery OTP</p>
+                <p className="text-3xl font-mono font-black text-gray-900 tracking-[0.3em] mt-1">{order.deliveryOtp}</p>
+                <p className="text-[11px] text-amber-800 mt-1.5">The receiver gives this code to the driver at delivery. Never share it earlier.</p>
+              </div>
+            )}
+
+            <div className="bg-white p-5 rounded-2xl border border-gray-200 space-y-2 text-xs">
+              <div className="flex justify-between"><span className="text-gray-500">Total</span><span className="font-black text-gray-900">₹{order.total}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Payment</span><span className="font-bold text-gray-800">{order.paymentMethod === 'cod' ? 'Cash on delivery' : 'Online'} · {String(order.paymentStatus).replace(/_/g, ' ')}</span></div>
+              {order.distanceKm != null && <div className="flex justify-between"><span className="text-gray-500">Distance</span><span className="font-bold text-gray-800">{order.distanceKm} km</span></div>}
+              <div className="flex justify-between"><span className="text-gray-500">Receiver</span><span className="font-bold text-gray-800">{order.receiver?.name}</span></div>
+            </div>
+
+            {canCancel && (
+              <button disabled={!!busy} onClick={() => { if (window.confirm('Cancel this order?')) run('cancel', () => cancelOrder(order.id, 'Cancelled by customer')); }} className="w-full py-2.5 text-xs font-bold text-rose-600 bg-white border border-rose-200 rounded-xl hover:bg-rose-50 disabled:opacity-60">
+                {busy === 'cancel' ? 'Cancelling…' : 'Cancel order'}
+              </button>
+            )}
+            <p className="flex items-center justify-center gap-1.5 text-[11px] text-gray-400"><ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Only share the OTP with the driver at delivery</p>
+          </div>
         </div>
       </div>
-
-      {/* Tax Invoice Modal */}
-      <InvoiceModal
-        isOpen={isInvoiceOpen}
-        onClose={() => setIsInvoiceOpen(false)}
-        order={order}
-      />
     </div>
   );
 }

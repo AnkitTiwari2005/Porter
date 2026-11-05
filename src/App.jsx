@@ -16,6 +16,7 @@ import AllIndiaParcelPage from './pages/AllIndiaParcelPage';
 import EnterprisePage from './pages/EnterprisePage';
 import OrderTrackingPage from './pages/OrderTrackingPage';
 import NotFoundPage from './pages/NotFoundPage';
+import PublicTrackingPage from './pages/PublicTrackingPage';
 import LegalPage from './pages/LegalPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import DriverPortalPage from './pages/DriverPortalPage';
@@ -47,6 +48,7 @@ export default function App() {
               <Route path="/enterprise" element={<EnterprisePage />} />
               <Route path="/track" element={<OrderTrackingPage />} />
               <Route path="/track/:orderId" element={<OrderTrackingPage />} />
+              <Route path="/t/:token" element={<PublicTrackingPage />} />
               <Route path="/terms" element={<LegalPage kind="terms" />} />
               <Route path="/privacy" element={<LegalPage kind="privacy" />} />
               <Route path="/security" element={<LegalPage kind="security" />} />

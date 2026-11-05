@@ -15,9 +15,10 @@ export default function Navbar() {
     setIsLoginModalOpen, 
     setIsTrackModalOpen, 
     user, 
-    logoutUser,
-    activeBookings 
+    logout,
+    orders
   } = useApp();
+  const activeOrders = orders.filter((o) => !['delivered', 'cancelled'].includes(o.status));
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
@@ -50,16 +51,24 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center gap-4 ml-auto font-medium">
-            <Link to="/admin" className="hover:text-blue-400 transition flex items-center gap-1 text-gray-300">
-              <LayoutDashboard className="w-3.5 h-3.5 text-blue-400" />
-              <span>Admin Console</span>
-            </Link>
-            <span className="text-gray-700">|</span>
-            <Link to="/driver" className="hover:text-emerald-400 transition flex items-center gap-1 text-gray-300">
-              <Truck className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Driver Partner</span>
-            </Link>
-            <span className="text-gray-700">|</span>
+            {user.role === 'admin' && (
+              <>
+                <Link to="/admin" className="hover:text-blue-400 transition flex items-center gap-1 text-gray-300">
+                  <LayoutDashboard className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Admin Console</span>
+                </Link>
+                <span className="text-gray-700">|</span>
+              </>
+            )}
+            {user.role === 'driver' && (
+              <>
+                <Link to="/driver" className="hover:text-emerald-400 transition flex items-center gap-1 text-gray-300">
+                  <Truck className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Driver Portal</span>
+                </Link>
+                <span className="text-gray-700">|</span>
+              </>
+            )}
             <Link to="/enterprise" className="hover:text-white transition hidden md:flex items-center gap-1 text-gray-400">
               <Briefcase className="w-3.5 h-3.5" />
               <span>Enterprise</span>
@@ -188,7 +197,7 @@ export default function Navbar() {
           >
             <Navigation className="w-4 h-4 text-emerald-600" />
             <span>Track Orders</span>
-            {activeBookings.some(b => b.status === 'assigned' || b.status === 'in_transit') && (
+            {orders.some(b => b.status === 'assigned' || b.status === 'in_transit') && (
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
             )}
           </button>
@@ -222,10 +231,10 @@ export default function Navbar() {
                     className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-blue-50 hover:text-porter-blue flex items-center gap-2 font-medium"
                   >
                     <Truck className="w-3.5 h-3.5 text-gray-400" />
-                    <span>My Trips ({activeBookings.length})</span>
+                    <span>My Trips ({activeOrders.length} active)</span>
                   </button>
                   <button
-                    onClick={() => { logoutUser(); setProfileDropdownOpen(false); }}
+                    onClick={() => { logout(); setProfileDropdownOpen(false); }}
                     className="w-full text-left px-4 py-2 text-xs text-rose-600 hover:bg-rose-50 flex items-center gap-2 font-medium"
                   >
                     <LogOut className="w-3.5 h-3.5" />
@@ -278,15 +287,15 @@ export default function Navbar() {
             <Link to="/packers-and-movers" onClick={() => setMobileMenuOpen(false)} className="block py-1 text-gray-800">Packers & Movers (Shifting)</Link>
             <Link to="/all-india-parcel" onClick={() => setMobileMenuOpen(false)} className="block py-1 text-gray-800">All India Intercity Parcel</Link>
             <Link to="/enterprise" onClick={() => setMobileMenuOpen(false)} className="block py-1 text-gray-800">{BRANDING.name} Enterprise (B2B)</Link>
-            <Link to="/admin" onClick={() => setMobileMenuOpen(false)} className="block py-1 text-blue-600 font-bold">Admin Dispatch Console</Link>
-            <Link to="/driver" onClick={() => setMobileMenuOpen(false)} className="block py-1 text-emerald-600 font-bold">Driver Partner Portal</Link>
+            {user.role === 'admin' && <Link to="/admin" onClick={() => setMobileMenuOpen(false)} className="block py-1 text-blue-600 font-bold">Admin Console</Link>}
+            {user.role === 'driver' && <Link to="/driver" onClick={() => setMobileMenuOpen(false)} className="block py-1 text-emerald-600 font-bold">Driver Portal</Link>}
             <button
               onClick={() => { setIsTrackModalOpen(true); setMobileMenuOpen(false); }}
               className="w-full text-left py-1 text-emerald-700 font-bold flex items-center justify-between"
             >
               <span>Track Active Orders</span>
               <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
-                {activeBookings.length} Active
+                {activeOrders.length} Active
               </span>
             </button>
           </div>

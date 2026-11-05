@@ -1,161 +1,168 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { PROMO_CODES } from '../data/mockData';
-import { computeFare, promoApplies } from '../utils/pricing';
-import { getCoordinatesForAddress, calculateGeoDistance, getCityLocations } from '../data/geoData';
+import { computeFare } from '../utils/pricing';
+import { getCityLocations } from '../data/geoData';
+import { api, newIdempotencyKey } from '../lib/api';
 import InteractiveMap from '../components/InteractiveMap';
-import RazorpayModal from '../components/RazorpayModal';
+import PaymentModal from '../components/PaymentModal';
 import LocationSearchInput from '../components/LocationSearchInput';
-import { BRANDING } from '../config/branding';
 import { 
   Calculator, MapPin, Truck, Bike, ArrowRight, Check, Tag, ShieldCheck, 
   Info, Clock, AlertCircle, Sparkles, Navigation, X, CheckCircle2, CreditCard, 
   Plus, Trash2, UserPlus, Users 
 } from 'lucide-react';
 
+const toPoint = (text, place) => (place && place.address === text ? { address: text, lat: place.lat, lng: place.lng } : { address: text });
+
 export default function FareEstimatePage() {
   const { state } = useLocation();
   const navigate = useNavigate();
-  const { selectedCity, setIsCityModalOpen, addBooking, setIsTrackModalOpen, setActiveTrackingOrderId, user, fleetTariffs, setIsLoginModalOpen } = useApp();
+  const { selectedCity, setIsCityModalOpen, user, fleetTariffs, gstRate, cancelFee, catalogError, paymentsEnabled, requireLogin, bookOrder } = useApp();
 
-  const cityLocations = getCityLocations(selectedCity.id);
+  const cityLocations = useMemo(() => getCityLocations(selectedCity.id), [selectedCity.id]);
+  const hub = (i) => {
+    const l = cityLocations[i];
+    if (!l) return { text: '', place: null };
+    const text = l.name.includes(selectedCity.name) ? l.name : `${l.name}, ${selectedCity.name}`;
+    return { text, place: { address: text, lat: l.lat, lng: l.lng } };
+  };
 
-  const [pickup, setPickup] = useState(state?.pickup || `${cityLocations[0]?.name || 'Andheri West'}, ${selectedCity.name}`);
-  const [drop, setDrop] = useState(state?.drop || `${cityLocations[1]?.name || 'BKC Bandra'}, ${selectedCity.name}`);
+  const [pickup, setPickup] = useState(state?.pickup || hub(0).text);
+  const [pickupPlace, setPickupPlace] = useState(state?.pickup ? null : hub(0).place);
+  const [drop, setDrop] = useState(state?.drop || hub(1).text);
+  const [dropPlace, setDropPlace] = useState(state?.drop ? null : hub(1).place);
   const [extraStop, setExtraStop] = useState('');
   const [showExtraStop, setShowExtraStop] = useState(false);
+  const [helperCount, setHelperCount] = useState(0);
 
-  // Helper options (None, 1 Helper, 2 Helpers)
-  const [helperCount, setHelperCount] = useState(0); // 0, 1, 2
-
-  const [distanceKm, setDistanceKm] = useState(13.5);
   const [selectedVehicleId, setSelectedVehicleId] = useState(state?.selectedVehicleId || (state?.category === 'bike' ? 'two-wheeler' : 'tata-ace'));
-  const [activeCategoryFilter, setActiveCategoryFilter] = useState(
-    state?.category === 'bike' ? 'bike' : state?.category === 'truck' ? 'truck' : 'all'
-  );
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState(state?.category === 'bike' ? 'bike' : state?.category === 'truck' ? 'truck' : 'all');
 
-  // Promo code state
+  // Changing city resets the route to that city's hubs (but not on first render, so values passed from Home survive).
+  const firstRun = useRef(true);
+  useEffect(() => {
+    if (firstRun.current) { firstRun.current = false; return; }
+    setPickup(hub(0).text); setPickupPlace(hub(0).place);
+    setDrop(hub(1).text); setDropPlace(hub(1).place);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCity.id]);
+
   const [promoInput, setPromoInput] = useState('');
-  const [appliedPromo, setAppliedPromo] = useState(null);
+  const [promoCode, setPromoCode] = useState('');
   const [promoError, setPromoError] = useState('');
 
-  // Booking & Payment Modals
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-
   const [bookingForm, setBookingForm] = useState({
-    senderName: user.name || '',
-    senderPhone: user.phone || '',
-    receiverName: '',
-    receiverPhone: '',
-    goodsType: 'Carton Boxes & Electronics'
+    senderName: user.name || '', senderPhone: user.phone || '', receiverName: '', receiverPhone: '', goodsType: 'Carton Boxes & Electronics'
   });
-  // Generated once, so the payment header, booking and invoice all show the same ID.
-  const [draftOrderId] = useState(() => `PRT-${Math.floor(10000 + Math.random() * 90000)}`);
-  const [routeError, setRouteError] = useState('');
-
-  // Derive coordinates from selected locations
-  const pickupCoord = useMemo(() => {
-    return getCoordinatesForAddress(pickup, selectedCity.id);
-  }, [pickup, selectedCity.id]);
-
-  const dropCoord = useMemo(() => {
-    return getCoordinatesForAddress(drop, selectedCity.id);
-  }, [drop, selectedCity.id]);
-
-  const stopCoord = useMemo(() => {
-    if (showExtraStop && extraStop) {
-      return getCoordinatesForAddress(extraStop, selectedCity.id);
-    }
-    return null;
-  }, [showExtraStop, extraStop, selectedCity.id]);
-
-  // Recalculate geo distance whenever pickup, drop or multi-stop changes
   useEffect(() => {
-    if (stopCoord) {
-      const leg1 = calculateGeoDistance(pickupCoord, stopCoord);
-      const leg2 = calculateGeoDistance(stopCoord, dropCoord);
-      setDistanceKm(Number((leg1 + leg2).toFixed(1)));
-    } else {
-      const geoDist = calculateGeoDistance(pickupCoord, dropCoord);
-      setDistanceKm(Number(geoDist.toFixed(1)));
-    }
-  }, [pickupCoord, dropCoord, stopCoord]);
+    setBookingForm((f) => ({ ...f, senderName: f.senderName || user.name || '', senderPhone: f.senderPhone || user.phone || '' }));
+  }, [user.name, user.phone]);
+  const [routeError, setRouteError] = useState('');
+  const [submit, setSubmit] = useState({ busy: false, error: '' });
 
-  const selectedVehicle = useMemo(() => {
-    return fleetTariffs.find(v => v.id === selectedVehicleId) || fleetTariffs[0];
-  }, [selectedVehicleId, fleetTariffs]);
+  const selectedVehicle = useMemo(() => fleetTariffs.find((v) => v.id === selectedVehicleId) || fleetTariffs[0], [selectedVehicleId, fleetTariffs]);
 
-  // Pricing calculation
-  const pricing = useMemo(
-    () => computeFare({
-      vehicle: selectedVehicle,
-      distanceKm,
-      helperCount,
-      hasStop: showExtraStop && !!extraStop,
-      promo: appliedPromo
-    }),
-    [selectedVehicle, distanceKm, helperCount, showExtraStop, extraStop, appliedPromo]
-  );
+  // ---- Server quote: the API computes distance, discount and tax; this page only displays it.
+  const quoteInput = useMemo(() => ({
+    serviceType: 'city', cityId: selectedCity.id, vehicleId: selectedVehicle.id,
+    pickup: toPoint(pickup.trim(), pickupPlace), drop: toPoint(drop.trim(), dropPlace),
+    helperCount: selectedVehicle.category === 'truck' ? helperCount : 0,
+    hasStop: showExtraStop && !!extraStop.trim(),
+    ...(promoCode ? { promoCode } : {})
+  }), [selectedCity.id, selectedVehicle, pickup, pickupPlace, drop, dropPlace, helperCount, showExtraStop, extraStop, promoCode]);
+  const quoteKey = JSON.stringify(quoteInput);
+  const [refreshTick, setRefreshTick] = useState(0);
+
+  const [quote, setQuote] = useState(null);
+  const [quoteError, setQuoteError] = useState('');
+  const [quoting, setQuoting] = useState(false);
+  useEffect(() => {
+    if (pickup.trim().length < 3 || drop.trim().length < 3) { setQuote(null); setQuoteError(''); setQuoting(false); return undefined; }
+    const ctrl = new AbortController();
+    setQuoting(true);
+    const t = setTimeout(async () => {
+      try {
+        const q = await api.post('/quotes', JSON.parse(quoteKey), { signal: ctrl.signal });
+        setQuote(q);
+        setQuoteError('');
+        if (q.promo && !q.promo.valid) { setPromoError(q.promo.error || 'This coupon cannot be applied.'); setPromoCode(''); }
+      } catch (e) {
+        if (e.name === 'AbortError') return;
+        setQuote(null);
+        setQuoteError(e.message);
+      } finally {
+        if (!ctrl.signal.aborted) setQuoting(false);
+      }
+    }, 450);
+    return () => { clearTimeout(t); ctrl.abort(); };
+  }, [quoteKey, refreshTick, pickup, drop]);
+
+  const quoteReady = !!quote && !quoting && !quoteError;
+  const distanceKm = quote?.distanceKm ?? null;
+  const pricing = quote?.pricing ?? computeFare({ vehicle: selectedVehicle, distanceKm: selectedVehicle.baseKm, helperCount: selectedVehicle.category === 'truck' ? helperCount : 0, hasStop: showExtraStop && !!extraStop.trim(), gstRate });
+  const appliedPromo = quote?.promo?.valid ? { code: quote.promo.code, description: 'Discount applied to your fare' } : null;
+
+  const center = (id) => cityLocations[id] ? [cityLocations[id].lat, cityLocations[id].lng] : [19.076, 72.8777];
+  const pickupCoord = quote ? [quote.pickup.lat, quote.pickup.lng] : pickupPlace ? [pickupPlace.lat, pickupPlace.lng] : center(0);
+  const dropCoord = quote ? [quote.drop.lat, quote.drop.lng] : dropPlace ? [dropPlace.lat, dropPlace.lng] : center(1);
 
   const handleApplyPromo = (e) => {
     e.preventDefault();
+    const code = promoInput.trim().toUpperCase();
+    if (!code) return;
     setPromoError('');
-    const found = PROMO_CODES.find(p => p.code.toUpperCase() === promoInput.trim().toUpperCase());
-    if (!found) {
-      setPromoError('Invalid coupon code. Try PORTER50 or FIRSTTRUCK');
-      return;
-    }
-    const check = promoApplies(found, selectedVehicle, pricing.subtotal);
-    if (!check.ok) {
-      setPromoError(check.reason);
-      return;
-    }
-    setAppliedPromo(found);
+    setPromoCode(code);
     setPromoInput('');
   };
 
   const handleBookClick = () => {
-    if (!user.isLoggedIn) { setIsLoginModalOpen(true); return; }
+    if (!user.isLoggedIn) { requireLogin(() => setIsBookingModalOpen(true)); return; }
+    if (user.role !== 'customer') { setRouteError('Please log in with a customer account to book.'); return; }
     if (!pickup.trim() || !drop.trim()) { setRouteError('Enter both pickup and drop addresses.'); return; }
-    if (pickup.trim().toLowerCase() === drop.trim().toLowerCase()) {
-      setRouteError('Pickup and drop cannot be the same place.');
-      return;
-    }
+    if (!quoteReady) { setRouteError(quoteError || 'Hold on, we are calculating your fare.'); return; }
     setRouteError('');
     setIsBookingModalOpen(true);
   };
 
   const handleProceedToPayment = (e) => {
     e.preventDefault();
+    setSubmit({ busy: false, error: '' });
     setIsBookingModalOpen(false);
     setIsPaymentModalOpen(true);
   };
 
-  const handlePaymentSuccess = (paymentData) => {
-    setIsPaymentModalOpen(false);
-    const orderId = addBooking({
-      pickup,
-      drop,
-      distance: distanceKm,
-      vehicle: selectedVehicle,
-      fare: pricing.total,
-      senderName: bookingForm.senderName,
-      senderPhone: bookingForm.senderPhone,
-      receiverName: bookingForm.receiverName,
-      receiverPhone: bookingForm.receiverPhone,
+  // One idempotency key per distinct request, so a retry after a flaky network never books twice.
+  const idem = useRef({ body: '', key: '' });
+  const confirmPayment = async (method) => {
+    const payload = {
+      quote: JSON.parse(quoteKey),
+      paymentMethod: method,
+      expectedTotal: pricing.total,
+      sender: { name: bookingForm.senderName.trim(), phone: bookingForm.senderPhone },
+      receiver: { name: bookingForm.receiverName.trim(), phone: bookingForm.receiverPhone },
       goodsType: bookingForm.goodsType,
-      paymentId: paymentData.paymentId,
-      helperCount,
-      orderId: draftOrderId,
-      pickupCoord,
-      dropCoord,
-      pricing
-    });
-
-    setActiveTrackingOrderId(orderId);
-    navigate('/track');
+      ...(showExtraStop && extraStop.trim() ? { notes: `Extra stop: ${extraStop.trim()}` } : {})
+    };
+    const body = JSON.stringify(payload);
+    if (idem.current.body !== body) idem.current = { body, key: newIdempotencyKey() };
+    setSubmit({ busy: true, error: '' });
+    try {
+      const { paymentPending } = await bookOrder(payload, idem.current.key);
+      setIsPaymentModalOpen(false);
+      navigate('/track', { state: { paymentPending } });
+    } catch (e) {
+      if (e.status === 401) { setIsPaymentModalOpen(false); requireLogin(() => setIsPaymentModalOpen(true)); setSubmit({ busy: false, error: '' }); return; }
+      if (e.code === 'price_changed') {
+        setRefreshTick((n) => n + 1);
+        setSubmit({ busy: false, error: `The fare changed to ₹${e.details?.total ?? 'a new amount'}. Please review the updated price and confirm again.` });
+        return;
+      }
+      const detail = e.details?.[0]?.message;
+      setSubmit({ busy: false, error: detail && e.code === 'invalid_request' ? `${e.message}` : e.message });
+    }
   };
 
   const filteredVehicles = fleetTariffs.filter(v => {
@@ -201,7 +208,7 @@ export default function FareEstimatePage() {
                   <span>1. Route & Live GPS Map</span>
                 </h3>
                 <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                  {distanceKm} km (approx. road distance)
+                  {quote ? `${quote.distanceKm} km${quote.route?.approximate ? ' (estimated)' : ''}` : quoting ? 'Calculating…' : 'Enter both addresses'}
                 </span>
               </div>
 
@@ -209,7 +216,8 @@ export default function FareEstimatePage() {
               <InteractiveMap
                 pickupCoord={pickupCoord}
                 dropCoord={dropCoord}
-                stopCoord={stopCoord}
+                routeLine={quote?.route?.line}
+                stopCoord={null}
                 pickupLabel={pickup}
                 dropLabel={drop}
                 stopLabel={extraStop}
@@ -223,6 +231,8 @@ export default function FareEstimatePage() {
                   label="Pickup Address"
                   value={pickup}
                   onChange={setPickup}
+                  onSelect={setPickupPlace}
+                  cityId={selectedCity.id}
                   placeholder={`Search pickup address or landmark in ${selectedCity.name}...`}
                   dotColor="emerald"
                   cityName={selectedCity.name}
@@ -248,6 +258,7 @@ export default function FareEstimatePage() {
                     <LocationSearchInput
                       value={extraStop}
                       onChange={setExtraStop}
+                      cityId={selectedCity.id}
                       placeholder={`Enter intermediate drop point in ${selectedCity.name}...`}
                       dotColor="amber"
                       cityName={selectedCity.name}
@@ -273,6 +284,8 @@ export default function FareEstimatePage() {
                     label="Drop Destination"
                     value={drop}
                     onChange={setDrop}
+                    onSelect={setDropPlace}
+                    cityId={selectedCity.id}
                     placeholder={`Search destination address in ${selectedCity.name}...`}
                     dotColor="rose"
                     cityName={selectedCity.name}
@@ -281,27 +294,19 @@ export default function FareEstimatePage() {
                 </div>
               </div>
 
-              {/* Distance Slider Override */}
-              <div className="pt-2 bg-blue-50/60 p-4 rounded-2xl border border-blue-100">
-                <div className="flex items-center justify-between text-xs font-bold text-gray-700 mb-2">
-                  <span>Calculated Route Distance:</span>
-                  <span className="text-base text-porter-blue font-black">{distanceKm} km</span>
+              {/* Server-calculated distance (cannot be edited: it drives the price) */}
+              <div className="pt-2 bg-blue-50/60 p-4 rounded-2xl border border-blue-100" aria-live="polite">
+                <div className="flex items-center justify-between text-xs font-bold text-gray-700">
+                  <span>Route distance</span>
+                  <span className="text-base text-porter-blue font-black">{quote ? `${quote.distanceKm} km` : '—'}</span>
                 </div>
-                <input
-                  type="range"
-                  min="1"
-                  max="60"
-                  step="0.5"
-                  value={distanceKm}
-                  onChange={(e) => setDistanceKm(parseFloat(e.target.value))}
-                  className="w-full accent-porter-blue h-2 bg-gray-200 rounded-lg cursor-pointer"
-                />
-                <div className="flex justify-between text-[10px] text-gray-400 font-medium mt-1">
-                  <span>1 km (Local drop)</span>
-                  <span>15 km (City traverse)</span>
-                  <span>30 km (Suburbs)</span>
-                  <span>60 km (Long-haul)</span>
-                </div>
+                {quote && (
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    About {quote.route?.minutes ?? '—'} min drive{quote.route?.approximate ? '. Distance is estimated; the fare is confirmed when you book.' : '.'}
+                  </p>
+                )}
+                {quoteError && <p role="alert" className="text-[11px] text-rose-600 font-medium mt-1">{quoteError}</p>}
+                {catalogError && <p role="alert" className="text-[11px] text-rose-600 font-medium mt-1">{catalogError}</p>}
               </div>
 
               {/* Portex Helper Assistance Option */}
@@ -377,7 +382,7 @@ export default function FareEstimatePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                 {filteredVehicles.map((v) => {
                   const isSelected = selectedVehicleId === v.id;
-                  const approxPrice = computeFare({ vehicle: v, distanceKm }).total;
+                  const approxPrice = computeFare({ vehicle: v, distanceKm: distanceKm ?? v.baseKm, gstRate }).total;
 
                   return (
                     <div
@@ -496,7 +501,7 @@ export default function FareEstimatePage() {
                       <p className="text-[11px] text-emerald-600 mt-0.5">{appliedPromo.description}</p>
                     </div>
                     <button
-                      onClick={() => setAppliedPromo(null)}
+                      onClick={() => { setPromoCode(''); setPromoError(''); }}
                       className="text-xs text-rose-600 font-bold hover:underline ml-2"
                     >
                       Remove
@@ -533,6 +538,7 @@ export default function FareEstimatePage() {
               <button
                 type="button"
                 onClick={handleBookClick}
+                disabled={quoting}
                 className="w-full py-4 bg-porter-blue hover:bg-porter-hover text-white rounded-2xl font-bold text-sm shadow-xl shadow-blue-500/25 flex items-center justify-center gap-2 group transition"
               >
                 <span>Book {selectedVehicle.name} • ₹{pricing.total}</span>
@@ -543,7 +549,7 @@ export default function FareEstimatePage() {
 
               <div className="flex items-center justify-center gap-2 text-[11px] text-gray-400">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>Zero cancellation fees before driver arrival</span>
+                <span>{cancelFee > 0 ? `Cancellation after a driver is assigned: ₹${cancelFee}` : 'Free cancellation before pickup'}</span>
               </div>
             </div>
           </div>
@@ -670,15 +676,15 @@ export default function FareEstimatePage() {
         </div>
       )}
 
-      {/* RAZORPAY PAYMENT MODAL */}
-      <RazorpayModal
+      <PaymentModal
         isOpen={isPaymentModalOpen}
         onClose={() => setIsPaymentModalOpen(false)}
-        amount={pricing.total}
-        orderId={draftOrderId}
-        customerName={bookingForm.senderName}
-        customerPhone={bookingForm.senderPhone}
-        onPaymentSuccess={handlePaymentSuccess}
+        total={pricing.total}
+        codAllowed
+        onlineAvailable={paymentsEnabled}
+        busy={submit.busy}
+        error={submit.error}
+        onConfirm={confirmPayment}
       />
     </div>
   );

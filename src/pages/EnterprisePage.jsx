@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { api } from '../lib/api';
 import { BRANDING } from '../config/branding';
 import { 
   Briefcase, CheckCircle2, ShieldCheck, TrendingUp, Users, 
@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 
 export default function EnterprisePage() {
-  const { selectedCity } = useApp();
   const [formData, setFormData] = useState({
     companyName: '',
     contactName: '',
@@ -16,10 +15,12 @@ export default function EnterprisePage() {
     monthlyTrips: '50-200 trips',
     vehicleRequirement: 'Tata Ace & 3-Wheelers'
   });
+  const [website, setWebsite] = useState(''); // honeypot: hidden from people, filled in by bots
   const [submitted, setSubmitted] = useState(false);
+  const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.companyName.trim() || !formData.contactName.trim()) {
       setError('Please provide company name and contact person.');
@@ -30,12 +31,22 @@ export default function EnterprisePage() {
       return;
     }
     setError('');
+    setSending(true);
     try {
-      const existing = JSON.parse(localStorage.getItem('porter_enterprise_leads') || '[]');
-      existing.unshift({ ...formData, submittedAt: new Date().toISOString() });
-      localStorage.setItem('porter_enterprise_leads', JSON.stringify(existing));
-    } catch { /* storage fallback */ }
-    setSubmitted(true);
+      await api.post('/leads', {
+        companyName: formData.companyName.trim(),
+        contactName: formData.contactName.trim(),
+        phone: formData.phone.trim(),
+        email: formData.workEmail.trim(),
+        details: { monthlyTrips: formData.monthlyTrips, vehicleRequirement: formData.vehicleRequirement },
+        website
+      });
+      setSubmitted(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -64,23 +75,14 @@ export default function EnterprisePage() {
             </h1>
 
             <p className="text-sm sm:text-base text-slate-300 max-w-xl leading-relaxed">
-              Empower your enterprise with dedicated fleet management, API automated dispatches, multi-drop route optimization, and consolidated monthly GST billing.
+              Empower your enterprise with dedicated fleet management, recurring multi-drop routes and GST invoices for every trip.
             </p>
 
-            <div className="grid grid-cols-3 gap-4 pt-4 border-t border-slate-800 max-w-lg">
-              <div>
-                <span className="text-2xl font-black text-white block">99.4%</span>
-                <span className="text-xs text-slate-400">On-Time SLA</span>
-              </div>
-              <div>
-                <span className="text-2xl font-black text-white block">30%</span>
-                <span className="text-xs text-slate-400">Logistics Cost Savings</span>
-              </div>
-              <div>
-                <span className="text-2xl font-black text-white block">50,000+</span>
-                <span className="text-xs text-slate-400">Enterprise Clients</span>
-              </div>
-            </div>
+            <ul className="space-y-2 pt-4 border-t border-slate-800 max-w-lg text-xs text-slate-300">
+              <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> Dedicated account contact and custom rate cards</li>
+              <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> Multi-drop planning for recurring routes</li>
+              <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> GST invoices for every delivered trip</li>
+            </ul>
           </div>
 
           {/* Enterprise Lead Generation Form */}
@@ -94,11 +96,14 @@ export default function EnterprisePage() {
                   </div>
                   <h3 className="text-xl font-bold text-slate-900">Inquiry Received!</h3>
                   <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                    A dedicated enterprise account manager for <strong className="text-slate-800">{formData.companyName}</strong> will contact you within 2 business hours.
+                    A dedicated enterprise account manager for <strong className="text-slate-800">{formData.companyName}</strong> will contact you on the number you provided.
                   </p>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
+                  <div aria-hidden="true" style={{ position: 'absolute', left: '-9999px', height: 0, overflow: 'hidden' }}>
+                    <label>Website<input tabIndex={-1} autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} /></label>
+                  </div>
                   <div>
                     <h3 className="text-base font-black text-slate-900">Partner with {BRANDING.name} Enterprise</h3>
                     <p className="text-xs text-slate-500">Get customized corporate rates & monthly billing</p>
@@ -185,9 +190,10 @@ export default function EnterprisePage() {
 
                   <button
                     type="submit"
-                    className="w-full py-3.5 bg-porter-blue hover:bg-porter-hover text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 transition mt-2"
+                    disabled={sending}
+                    className="w-full py-3.5 bg-porter-blue hover:bg-porter-hover disabled:opacity-60 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 transition mt-2"
                   >
-                    <span>Request Custom Enterprise Quote</span>
+                    <span>{sending ? 'Sending…' : 'Request Custom Enterprise Quote'}</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 </form>
@@ -223,9 +229,9 @@ export default function EnterprisePage() {
             <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
               <Layers className="w-6 h-6" />
             </div>
-            <h4 className="text-base font-bold text-gray-900">Direct REST API Integrations</h4>
+            <h4 className="text-base font-bold text-gray-900">Integrations on request</h4>
             <p className="text-xs text-gray-500 leading-relaxed">
-              Integrate {BRANDING.name} dispatches directly into your Shopify, WooCommerce, ERP, or custom warehouse management system.
+              Tell us about your order system. We will discuss integration options for your volumes.
             </p>
           </div>
 

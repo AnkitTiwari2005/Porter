@@ -1,8 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { BRANDING } from '../config/branding';
-import { getCityLocations, getCoordinatesForAddress } from '../data/geoData';
+import { getCityLocations } from '../data/geoData';
+import { computePackers, PACKERS_PLANS } from '../utils/pricing';
+import { api, newIdempotencyKey } from '../lib/api';
+import LocationSearchInput from '../components/LocationSearchInput';
+import PaymentModal from '../components/PaymentModal';
 import { 
   Home, CheckCircle2, ShieldCheck, Calendar, ArrowRight, 
   Box, Sparkles, Award, Clock, Phone, MapPin, Check 
@@ -10,15 +14,23 @@ import {
 
 export default function PackersMoversPage() {
   const navigate = useNavigate();
-  const { selectedCity, addBooking, setActiveTrackingOrderId, user, setIsLoginModalOpen } = useApp();
+  const { selectedCity, user, gstRate, paymentsEnabled, requireLogin, bookOrder } = useApp();
   const { state } = useLocation();
 
-  const cityLocations = getCityLocations(selectedCity.id);
-  const stripCity = (s) => (s || '').replace(new RegExp(`,\\s*${selectedCity.name}\\s*$`, 'i'), '');
+  const cityLocations = useMemo(() => getCityLocations(selectedCity.id), [selectedCity.id]);
+  const hub = (i) => {
+    const l = cityLocations[i];
+    if (!l) return { text: '', place: null };
+    const text = l.name.includes(selectedCity.name) ? l.name : `${l.name}, ${selectedCity.name}`;
+    return { text, place: { address: text, lat: l.lat, lng: l.lng } };
+  };
+  const toPoint = (text, place) => (place && place.address === text ? { address: text, lat: place.lat, lng: place.lng } : { address: text });
 
-  const [houseSize, setHouseSize] = useState('1bhk'); // '1rk' | '1bhk' | '2bhk' | '3bhk' | 'few'
-  const [pickup, setPickup] = useState(stripCity(state?.pickup) || cityLocations[0]?.name || '');
-  const [drop, setDrop] = useState(stripCity(state?.drop) || cityLocations[1]?.name || '');
+  const [houseSize, setHouseSize] = useState('1bhk');
+  const [pickup, setPickup] = useState(state?.pickup || hub(0).text);
+  const [pickupPlace, setPickupPlace] = useState(state?.pickup ? null : hub(0).place);
+  const [drop, setDrop] = useState(state?.drop || hub(1).text);
+  const [dropPlace, setDropPlace] = useState(state?.drop ? null : hub(1).place);
   const [moveDate, setMoveDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() + 2);
@@ -27,52 +39,80 @@ export default function PackersMoversPage() {
   const [hasLiftPickup, setHasLiftPickup] = useState(true);
   const [hasLiftDrop, setHasLiftDrop] = useState(true);
   const [needDismantling, setNeedDismantling] = useState(true);
-  const [isBooked, setIsBooked] = useState(false);
 
-  const houseOptions = [
-    { id: '1rk', label: '1 RK / Studio', base: 3200, items: '1 Bed, 1 Wardrobe, 5-8 Boxes, Fridge' },
-    { id: '1bhk', label: '1 BHK Apartment', base: 4900, items: '1 Queen Bed, Sofa, Dining, Fridge, TV, 10-15 Boxes' },
-    { id: '2bhk', label: '2 BHK Apartment', base: 7800, items: '2 Beds, 5-seater Sofa, Full Kitchen, 20-25 Boxes' },
-    { id: '3bhk', label: '3 BHK / Villa', base: 11900, items: '3 Beds, Living Room, Appliances, ACs, 30+ Boxes' },
-    { id: 'few', label: 'Few Items / Mini Shift', base: 1800, items: '1-3 Furniture pieces or appliance only' }
-  ];
+  const firstRun = useRef(true);
+  useEffect(() => {
+    if (firstRun.current) { firstRun.current = false; return; }
+    setPickup(hub(0).text); setPickupPlace(hub(0).place);
+    setDrop(hub(1).text); setDropPlace(hub(1).place);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCity.id]);
 
-  const currentOption = houseOptions.find(h => h.id === houseSize) || houseOptions[1];
+  const descriptions = {
+    '1rk': '1 Bed, 1 Wardrobe, 5-8 Boxes, Fridge',
+    '1bhk': '1 Queen Bed, Sofa, Dining, Fridge, TV, 10-15 Boxes',
+    '2bhk': '2 Beds, 5-seater Sofa, Full Kitchen, 20-25 Boxes',
+    '3bhk': '3 Beds, Living Room, Appliances, ACs, 30+ Boxes',
+    few: '1-3 Furniture pieces or appliance only'
+  };
+  const houseOptions = PACKERS_PLANS.map((p) => ({ ...p, items: descriptions[p.id] }));
+  const currentOption = houseOptions.find((h) => h.id === houseSize) || houseOptions[1];
 
-  const estimatedFare = useMemo(() => {
-    let price = currentOption.base;
-    if (!hasLiftPickup) price += 400; // Extra stairs carrying
-    if (!hasLiftDrop) price += 400;
-    if (needDismantling) price += 600; // Carpenter disassembly
-    return price;
-  }, [currentOption, hasLiftPickup, hasLiftDrop, needDismantling]);
+  // The API computes the real price; the local figure is only a placeholder until the quote arrives.
+  const quoteInput = useMemo(() => ({
+    serviceType: 'packers', cityId: selectedCity.id, planId: houseSize,
+    pickup: toPoint(pickup.trim(), pickupPlace), drop: toPoint(drop.trim(), dropPlace),
+    hasLiftPickup, hasLiftDrop, needDismantling
+  }), [selectedCity.id, houseSize, pickup, pickupPlace, drop, dropPlace, hasLiftPickup, hasLiftDrop, needDismantling]);
+  const quoteKey = JSON.stringify(quoteInput);
+  const [quote, setQuote] = useState(null);
+  const [quoteError, setQuoteError] = useState('');
+  const [quoting, setQuoting] = useState(false);
+  useEffect(() => {
+    if (pickup.trim().length < 3 || drop.trim().length < 3) { setQuote(null); setQuoteError(''); return undefined; }
+    const ctrl = new AbortController();
+    setQuoting(true);
+    const t = setTimeout(async () => {
+      try { setQuote(await api.post('/quotes', JSON.parse(quoteKey), { signal: ctrl.signal })); setQuoteError(''); }
+      catch (e) { if (e.name !== 'AbortError') { setQuote(null); setQuoteError(e.message); } }
+      finally { if (!ctrl.signal.aborted) setQuoting(false); }
+    }, 450);
+    return () => { clearTimeout(t); ctrl.abort(); };
+  }, [quoteKey, pickup, drop]);
+
+  const pricing = quote?.pricing ?? computePackers({ planId: houseSize, hasLiftPickup, hasLiftDrop, needDismantling, gstRate });
+  const estimatedFare = pricing.total;
+
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [submit, setSubmit] = useState({ busy: false, error: '' });
+  const idem = useRef({ body: '', key: '' });
 
   const handleBookShifting = (e) => {
     e.preventDefault();
-    if (!user.isLoggedIn) { setIsLoginModalOpen(true); return; }
-    const orderId = addBooking({
-      pickup: `${pickup}, ${selectedCity.name}`,
-      drop: `${drop}, ${selectedCity.name}`,
-      distance: 16.5,
-      vehicle: {
-        name: `Packers & Movers (${currentOption.label})`,
-        id: 'packers-movers',
-        icon: '/images/trucks_india_a42dcdfc61.webp'
-      },
-      fare: estimatedFare,
-      senderName: user.name,
-      senderPhone: user.phone,
-      receiverName: user.name,
-      receiverPhone: user.phone,
-      goodsType: `House Shifting (${currentOption.label})`,
-      moveDate,
-      pickupCoord: getCoordinatesForAddress(pickup, selectedCity.id),
-      dropCoord: getCoordinatesForAddress(drop, selectedCity.id)
-    });
+    if (!user.isLoggedIn) { requireLogin(() => setIsPaymentOpen(true)); return; }
+    if (user.role !== 'customer') { setSubmit({ busy: false, error: 'Please log in with a customer account to book.' }); return; }
+    if (!quote || quoting) { setSubmit({ busy: false, error: quoteError || 'Hold on, we are calculating your quote.' }); return; }
+    setSubmit({ busy: false, error: '' });
+    setIsPaymentOpen(true);
+  };
 
-    setIsBooked(orderId);
-    setActiveTrackingOrderId(orderId);
-    navigate('/track');
+  const confirmPayment = async (method) => {
+    const payload = {
+      quote: JSON.parse(quoteKey), paymentMethod: method, expectedTotal: estimatedFare,
+      sender: { name: user.name || 'Customer', phone: user.phone }, receiver: { name: user.name || 'Customer', phone: user.phone },
+      goodsType: `House Shifting (${currentOption.label})`,
+      scheduledFor: new Date(`${moveDate}T09:00:00+05:30`).toISOString()
+    };
+    const body = JSON.stringify(payload);
+    if (idem.current.body !== body) idem.current = { body, key: newIdempotencyKey() };
+    setSubmit({ busy: true, error: '' });
+    try {
+      const { paymentPending } = await bookOrder(payload, idem.current.key);
+      setIsPaymentOpen(false);
+      navigate('/track', { state: { paymentPending } });
+    } catch (err) {
+      setSubmit({ busy: false, error: err.code === 'price_changed' ? `The price changed to ₹${err.details?.total}. Please review and confirm again.` : err.message });
+    }
   };
 
   return (
@@ -166,25 +206,16 @@ export default function PackersMoversPage() {
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Current House (Pickup)</label>
-                  <input
-                    type="text"
-                    value={pickup}
-                    onChange={(e) => setPickup(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-porter-blue"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">New House (Destination)</label>
-                  <input
-                    type="text"
-                    value={drop}
-                    onChange={(e) => setDrop(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-porter-blue"
-                  />
-                </div>
+                <LocationSearchInput
+                  label="Current House (Pickup)" value={pickup} onChange={setPickup} onSelect={setPickupPlace}
+                  cityId={selectedCity.id} cityName={selectedCity.name} popularLocations={cityLocations} dotColor="emerald"
+                  placeholder={`Search your current address in ${selectedCity.name}`}
+                />
+                <LocationSearchInput
+                  label="New House (Destination)" value={drop} onChange={setDrop} onSelect={setDropPlace}
+                  cityId={selectedCity.id} cityName={selectedCity.name} popularLocations={cityLocations} dotColor="rose"
+                  placeholder={`Search your new address in ${selectedCity.name}`}
+                />
               </div>
 
               <div>
@@ -253,7 +284,7 @@ export default function PackersMoversPage() {
               <div className="space-y-2.5 text-xs text-gray-600">
                 <div className="flex justify-between">
                   <span>Base Shifting Package</span>
-                  <span className="font-bold text-gray-900">₹{currentOption.base}</span>
+                  <span className="font-bold text-gray-900">₹{pricing.baseFare}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Multi-layer Bubble Wrap & Packing</span>
@@ -275,37 +306,32 @@ export default function PackersMoversPage() {
                 <div className="pt-3 border-t border-gray-200 flex items-center justify-between text-sm">
                   <div>
                     <span className="font-black text-gray-900 block">Total Package</span>
-                    <span className="text-[11px] text-gray-400">All taxes & labor included</span>
+                    <span className="text-[11px] text-gray-400">Includes GST (₹{pricing.gst}) and labour</span>
                   </div>
                   <span className="text-2xl font-black text-purple-700">₹{estimatedFare}</span>
                 </div>
               </div>
 
-              {isBooked ? (
-                <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-2xl text-center space-y-1">
-                  <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
-                  <p className="font-bold text-sm text-gray-900">Slot Booked: #{isBooked}</p>
-                  <p className="text-xs text-gray-500">Redirecting to Live Trip Tracker...</p>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleBookShifting}
-                  className="w-full py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl font-bold text-sm shadow-xl shadow-purple-600/25 flex items-center justify-center gap-2 transition"
-                >
-                  <span>Book House Shifting Slot</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              )}
+              {(quoteError || submit.error) && <p role="alert" className="text-xs text-rose-600 font-medium">{submit.error || quoteError}</p>}
+              <button
+                type="button"
+                onClick={handleBookShifting}
+                disabled={quoting}
+                className="w-full py-4 bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white rounded-2xl font-bold text-sm shadow-xl shadow-purple-600/25 flex items-center justify-center gap-2 transition"
+              >
+                <span>{quoting ? 'Calculating…' : 'Book House Shifting Slot'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
 
               <div className="flex items-center justify-center gap-1.5 text-[11px] text-gray-400">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>₹50,000 Goods Transit Insurance Included</span>
+                <span>Free cancellation before pickup</span>
               </div>
             </div>
           </div>
         </div>
       </div>
+      <PaymentModal isOpen={isPaymentOpen} onClose={() => setIsPaymentOpen(false)} total={estimatedFare} codAllowed={!paymentsEnabled} onlineAvailable={paymentsEnabled} busy={submit.busy} error={submit.error} onConfirm={confirmPayment} />
     </div>
   );
 }

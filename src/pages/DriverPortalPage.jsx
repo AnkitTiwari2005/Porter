@@ -1,311 +1,175 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useApp } from '../context/AppContext';
-import { BRANDING } from '../config/branding';
+import { api } from '../lib/api';
 import InteractiveMap from '../components/InteractiveMap';
-import { getCoordinatesForAddress } from '../data/geoData';
-import { 
-  Truck, Power, DollarSign, Navigation, Phone, 
-  CheckCircle2, Clock, MapPin, AlertCircle, Award, Star, X, Check, 
-  Compass, Play, Bell 
-} from 'lucide-react';
+import { Truck, MapPin, Phone, Power, Banknote, CheckCircle2, Loader2, AlertTriangle, Navigation } from 'lucide-react';
+
+const useCountdown = (iso) => {
+  const [left, setLeft] = useState(() => Math.max(0, Math.round((new Date(iso) - Date.now()) / 1000)));
+  useEffect(() => {
+    const t = setInterval(() => setLeft(Math.max(0, Math.round((new Date(iso) - Date.now()) / 1000))), 500);
+    return () => clearInterval(t);
+  }, [iso]);
+  return left;
+};
+
+function OfferCard({ offer, onAccept, onReject, busy }) {
+  const left = useCountdown(offer.expiresAt);
+  return (
+    <div className="bg-white border-2 border-emerald-300 rounded-2xl p-5 space-y-3 shadow-lg animate-scaleUp">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold text-emerald-700 uppercase tracking-wide">New trip request</span>
+        <span className={`text-xs font-mono font-black ${left <= 8 ? 'text-rose-600' : 'text-gray-700'}`}>{left}s</span>
+      </div>
+      <div className="text-xs space-y-1.5">
+        <p className="flex gap-2"><MapPin className="w-4 h-4 text-emerald-600 shrink-0" /><span className="font-semibold">{offer.pickup}</span></p>
+        <p className="flex gap-2"><MapPin className="w-4 h-4 text-rose-500 shrink-0" /><span className="font-semibold">{offer.drop}</span></p>
+      </div>
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-gray-500">{offer.vehicleName}{offer.distanceKm ? ` · ${offer.distanceKm} km` : ''}</span>
+        <span className="font-black text-lg text-gray-900">You earn ₹{offer.earn}</span>
+      </div>
+      {offer.collectCash > 0 && <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">Collect ₹{offer.collectCash} cash from the receiver.</p>}
+      <div className="grid grid-cols-2 gap-2">
+        <button disabled={busy} onClick={() => onReject(offer.id)} className="py-2.5 text-xs font-bold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200">Decline</button>
+        <button disabled={busy || left === 0} onClick={() => onAccept(offer.id)} className="py-2.5 text-xs font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 disabled:opacity-50">Accept</button>
+      </div>
+    </div>
+  );
+}
 
 export default function DriverPortalPage() {
-  const { 
-    activeBookings, 
-    verifyDeliveryOtp, 
-    updateBookingStatus, 
-    driverOnline, 
-    setDriverOnline, 
-    driverEarnings,
-    addBooking,
-    selectedCity 
-  } = useApp();
+  const { user, authReady, requireLogin, logout } = useApp();
+  const [me, setMe] = useState(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [gps, setGps] = useState({ pos: null, error: '' });
+  const lastSent = useRef(0);
 
-  const [otpInput, setOtpInput] = useState('');
-  const [otpError, setOtpError] = useState('');
-  const [tripCompletedSuccess, setTripCompletedSuccess] = useState(false);
-  const [navStep, setNavStep] = useState(1); // 1: heading to pickup, 2: goods loaded / in transit, 3: arrived at drop
+  const load = useCallback(async () => {
+    try { setMe(await api.get('/driver/me')); setError(''); } catch (e) { setError(e.message); }
+  }, []);
 
-  // Audio chime synthesizer
-  const playAlertChime = () => {
-    try {
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
-      osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15); // A5
-      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.4);
-    } catch (e) {
-      // AudioContext muted/unsupported
+  const isDriver = user.role === 'driver';
+  useEffect(() => {
+    if (!isDriver) return undefined;
+    load();
+    const poll = setInterval(load, 10000);
+    let es;
+    if (typeof EventSource !== 'undefined') {
+      es = new EventSource(api.url('/driver/stream'), { withCredentials: true });
+      ['offer', 'offer_expired', 'assigned', 'order_cancelled'].forEach((t) => es.addEventListener(t, load));
     }
-  };
+    return () => { clearInterval(poll); es?.close(); };
+  }, [isDriver, load]);
 
-  // Find active assigned trip
-  // Only genuinely open trips - never fall back to a delivered/cancelled order.
-  const activeTrip = activeBookings.find(b => b.status === 'in_transit' || b.status === 'assigned');
-  const tripPickupCoord = activeTrip ? (activeTrip.pickupCoord || getCoordinatesForAddress(activeTrip.pickup, activeTrip.cityId)) : undefined;
-  const tripDropCoord = activeTrip ? (activeTrip.dropCoord || getCoordinatesForAddress(activeTrip.drop, activeTrip.cityId)) : undefined;
-
-  const handleVerifyOtpAndComplete = (e) => {
-    e.preventDefault();
-    if (!activeTrip) return;
-
-    const result = verifyDeliveryOtp(activeTrip.orderId, otpInput);
-    if (!result.success) {
-      setOtpError(result.message);
-      return;
-    }
-
-    playAlertChime();
-    setOtpError('');
-    setTripCompletedSuccess(true);
-    setOtpInput('');
-
-    setTimeout(() => {
-      setTripCompletedSuccess(false);
-      setNavStep(1);
-    }, 4000);
-  };
-
-  // Fast trigger for testing incoming booking
-  const handleSimulateNewBooking = () => {
-    if (!driverOnline) return;
-    playAlertChime();
-    addBooking({
-      pickup: 'Andheri West Link Road, Mumbai',
-      drop: 'BKC Bandra Kurla Complex, Mumbai',
-      distance: 14.5,
-      vehicle: {
-        name: 'Tata Ace (Chota Hathi)',
-        id: 'tata-ace',
-        icon: '/images/Tata_Ace_5fd23cdaf0.svg'
+  // Report real GPS while online (at most one update every 8 seconds).
+  const online = !!me?.driver?.online;
+  useEffect(() => {
+    if (!online) return undefined;
+    if (!navigator.geolocation) { setGps({ pos: null, error: 'This device cannot share its location.' }); return undefined; }
+    const id = navigator.geolocation.watchPosition(
+      (p) => {
+        const pos = [p.coords.latitude, p.coords.longitude];
+        setGps({ pos, error: '' });
+        if (Date.now() - lastSent.current > 8000) { lastSent.current = Date.now(); api.post('/driver/location', { lat: pos[0], lng: pos[1] }).catch(() => {}); }
       },
-      fare: 480,
-      senderName: 'Rohit Khandelwal',
-      senderPhone: '+91 98205 66781',
-      receiverName: 'Sanjay Deshmukh',
-      receiverPhone: '+91 98190 22345',
-      goodsType: 'Retail Footwear & Apparel'
-    });
+      () => setGps({ pos: null, error: 'Location is blocked. Allow location access to receive trips.' }),
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 }
+    );
+    return () => navigator.geolocation.clearWatch(id);
+  }, [online]);
+
+  const act = async (fn) => {
+    setBusy(true); setError('');
+    try { await fn(); await load(); } catch (e) { setError(e.message); } finally { setBusy(false); }
   };
+
+  if (!authReady) return <div className="min-h-[60vh] flex items-center justify-center text-sm text-gray-400">Loading…</div>;
+  if (!isDriver) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center">
+        <Truck className="w-14 h-14 text-gray-300 mb-3" />
+        <h2 className="text-xl font-bold text-gray-800">Driver partner portal</h2>
+        <p className="text-xs text-gray-500 mt-1 max-w-sm">{user.isLoggedIn ? 'This account is not a driver account.' : 'Log in with the mobile number registered by our team.'}</p>
+        {user.isLoggedIn
+          ? <button onClick={logout} className="mt-4 px-6 py-2.5 border border-gray-300 text-xs font-bold rounded-xl">Log out</button>
+          : <button onClick={() => requireLogin()} className="mt-4 px-6 py-2.5 bg-porter-blue text-white text-xs font-bold rounded-xl">Driver login</button>}
+      </div>
+    );
+  }
+  if (!me) return <div className="min-h-[60vh] flex items-center justify-center">{error ? <p className="text-sm text-rose-600">{error}</p> : <Loader2 className="w-8 h-8 text-gray-300 animate-spin" />}</div>;
+
+  const { driver, activeOrder: trip, offers, earnings } = me;
+  const approved = driver.status === 'approved';
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-gray-900 py-8 px-4 sm:px-8">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Driver Top Profile Bar */}
-        <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-black text-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-              R
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg font-black text-gray-900">Rameshwar Yadav</h1>
-                <span className="flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                  <Star className="w-3 h-3 fill-amber-400" /> 4.92 Rating
-                </span>
-              </div>
-              <p className="text-xs text-gray-500 font-mono mt-0.5">
-                Tata Ace Gold • <span className="font-bold text-gray-800">MH 02 EE 7418</span> • {selectedCity.name} Hub
-              </p>
-            </div>
+    <div className="min-h-screen bg-[#f8fafc] py-8 px-4">
+      <div className="max-w-xl mx-auto space-y-5">
+        <div className="bg-slate-900 text-white rounded-2xl p-5 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-400">{driver.vehicleNo}</p>
+            <h1 className="text-lg font-black">{driver.name || 'Driver'}</h1>
+            <p className="text-[11px] text-slate-400">★ {Number(driver.rating).toFixed(1)}</p>
           </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleSimulateNewBooking}
-              className="px-3.5 py-2.5 rounded-2xl font-bold text-xs bg-blue-50 hover:bg-blue-100 text-porter-blue border border-blue-200 transition flex items-center gap-1.5"
-            >
-              <Bell className="w-3.5 h-3.5" />
-              <span>Simulate Customer Booking</span>
-            </button>
-
-            {/* Online Toggle Button */}
-            <button
-              onClick={() => setDriverOnline(!driverOnline)}
-              className={`px-5 py-2.5 rounded-2xl font-bold text-xs flex items-center gap-2 transition shadow-md ${
-                driverOnline
-                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/25'
-                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-              }`}
-            >
-              <Power className="w-4 h-4" />
-              <span>{driverOnline ? 'Online' : 'Offline'}</span>
-            </button>
-          </div>
+          <button
+            disabled={!approved || busy || !!trip}
+            onClick={() => act(() => api.post('/driver/online', { online: !online }))}
+            aria-pressed={online}
+            className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition disabled:opacity-50 ${online ? 'bg-emerald-500 text-white' : 'bg-slate-700 text-slate-200'}`}
+          >
+            <Power className="w-4 h-4" /> {online ? 'Online' : 'Go online'}
+          </button>
         </div>
 
-        {/* Driver Today's Ledger */}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm">
-            <span className="text-[11px] text-gray-400 block font-semibold uppercase">Today's Earnings</span>
-            <p className="text-2xl font-black text-emerald-600 mt-1">₹{driverEarnings}</p>
-          </div>
-          <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm">
-            <span className="text-[11px] text-gray-400 block font-semibold uppercase">Trips Completed</span>
-            <p className="text-2xl font-black text-gray-900 mt-1">
-              {activeBookings.filter(b => b.status === 'delivered').length + 3}
-            </p>
-          </div>
-          <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm">
-            <span className="text-[11px] text-gray-400 block font-semibold uppercase">Platform Incentive</span>
-            <p className="text-2xl font-black text-porter-blue mt-1">+₹350</p>
-          </div>
+        {!approved && <div role="alert" className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700">Your account is {driver.status}. Contact support.</div>}
+        {error && <div role="alert" className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700">{error}</div>}
+        {online && gps.error && <div role="alert" className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex gap-2"><AlertTriangle className="w-4 h-4 shrink-0" />{gps.error}</div>}
+
+        <div className="grid grid-cols-3 gap-3 text-center">
+          {[['Today', `₹${earnings.today}`], ['Trips', earnings.trips], ['Total', `₹${earnings.total}`]].map(([k, v]) => (
+            <div key={k} className="bg-white rounded-xl border border-gray-200 py-3"><p className="text-[11px] text-gray-400 font-semibold">{k}</p><p className="text-base font-black text-gray-900">{v}</p></div>
+          ))}
         </div>
 
-        {tripCompletedSuccess && (
-          <div className="p-6 bg-emerald-50 border border-emerald-300 rounded-2xl text-center space-y-2 animate-fadeIn">
-            <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto" />
-            <h4 className="text-lg font-bold text-gray-900">Trip Delivered & Completed!</h4>
-            <p className="text-xs text-emerald-800">Fare credited to your driver wallet.</p>
-          </div>
-        )}
-
-        {/* ACTIVE TRIP DASHBOARD */}
-        {driverOnline && activeTrip ? (
-          <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-gray-100">
-              <div>
-                <span className="text-xs font-bold text-porter-blue uppercase tracking-widest block">
-                  Active Dispatch Assigned
-                </span>
-                <h3 className="text-lg font-bold text-gray-900">Order #{activeTrip.orderId}</h3>
-              </div>
-              <div className="text-right">
-                <span className="text-xs text-gray-400 block">Driver Fare (82%)</span>
-                <span className="text-xl font-black text-emerald-600">₹{Math.round(activeTrip.fare * 0.82)}</span>
-              </div>
+        {trip ? (
+          <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
+            <div className="flex items-center justify-between"><h2 className="text-sm font-black text-gray-900">Order {trip.id}</h2><span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-porter-blue">{trip.status === 'assigned' ? 'Go to pickup' : 'Deliver now'}</span></div>
+            {trip.pickup.lat != null && trip.drop.lat != null && <InteractiveMap pickupCoord={[trip.pickup.lat, trip.pickup.lng]} dropCoord={[trip.drop.lat, trip.drop.lng]} routeLine={trip.route} driverCoord={gps.pos} height="220px" />}
+            <div className="text-xs space-y-2">
+              <p className="flex gap-2"><MapPin className="w-4 h-4 text-emerald-600 shrink-0" /><span><span className="text-gray-400">Pickup · </span><span className="font-semibold">{trip.pickup.address}</span><br /><span className="text-gray-500">{trip.sender.name}</span> <a className="text-porter-blue font-bold" href={`tel:+91${trip.sender.phone}`}>Call</a></span></p>
+              <p className="flex gap-2"><MapPin className="w-4 h-4 text-rose-500 shrink-0" /><span><span className="text-gray-400">Drop · </span><span className="font-semibold">{trip.drop.address}</span><br /><span className="text-gray-500">{trip.receiver.name}</span> <a className="text-porter-blue font-bold" href={`tel:+91${trip.receiver.phone}`}>Call</a></span></p>
+              {trip.goodsType && <p className="text-gray-500">Goods: <span className="font-semibold text-gray-800">{trip.goodsType}</span></p>}
+              {trip.notes && <p className="text-gray-500">Note: <span className="font-semibold text-gray-800">{trip.notes}</span></p>}
             </div>
+            {trip.collectCash > 0 && <p className="flex items-center gap-2 text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2"><Banknote className="w-4 h-4" /> Collect ₹{trip.collectCash} cash on delivery</p>}
+            <a className="w-full py-2.5 text-xs font-bold text-porter-blue bg-blue-50 rounded-xl flex items-center justify-center gap-2" target="_blank" rel="noreferrer"
+              href={`https://www.google.com/maps/dir/?api=1&destination=${(trip.status === 'assigned' ? trip.pickup : trip.drop).lat},${(trip.status === 'assigned' ? trip.pickup : trip.drop).lng}`}>
+              <Navigation className="w-4 h-4" /> Open navigation
+            </a>
 
-            {/* Interactive Map */}
-            <div className="h-64 rounded-2xl overflow-hidden border border-gray-200">
-              <InteractiveMap
-                pickupCoord={tripPickupCoord}
-                dropCoord={tripDropCoord}
-                pickupLabel={activeTrip?.pickup || 'Pickup'}
-                dropLabel={activeTrip?.drop || 'Destination'}
-                height="100%"
-                vehicleProgress={0.4}
-              />
-            </div>
-
-            {/* Turn-by-Turn Navigation Simulator */}
-            <div className="p-4 bg-blue-50/80 rounded-2xl border border-blue-200 flex items-center justify-between text-xs">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-porter-blue text-white flex items-center justify-center font-bold">
-                  <Compass className="w-5 h-5 animate-spin" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-gray-900">
-                    {navStep === 1 ? 'Turn right onto Western Express Highway in 350m' : navStep === 2 ? 'Continue straight for 4.2 km towards BKC' : 'Arrived at Drop Destination'}
-                  </h4>
-                  <p className="text-[11px] text-gray-500 font-medium">ETA: ~12 mins • Optimal route selected</p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  if (navStep === 1) updateBookingStatus(activeTrip.orderId, 'in_transit');
-                  setNavStep(prev => prev < 3 ? prev + 1 : 1);
-                }}
-                className="px-3 py-1.5 bg-white border border-blue-300 rounded-xl font-bold text-porter-blue text-xs hover:bg-blue-100"
-              >
-                Next Step →
-              </button>
-            </div>
-
-            {/* Route details */}
-            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200 space-y-3 text-xs">
-              <div className="flex items-start gap-3">
-                <span className="w-3 h-3 rounded-full bg-emerald-500 mt-1 shrink-0"></span>
-                <div>
-                  <span className="text-[10px] text-emerald-700 font-bold uppercase">Pickup Point</span>
-                  <p className="text-sm font-semibold text-gray-800">{activeTrip.pickup}</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <span className="w-3 h-3 rounded-full bg-rose-500 mt-1 shrink-0"></span>
-                <div>
-                  <span className="text-[10px] text-rose-700 font-bold uppercase">Destination</span>
-                  <p className="text-sm font-semibold text-gray-800">{activeTrip.drop}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Client Call & Details */}
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-200">
-              <div>
-                <p className="text-xs font-bold text-gray-900">{activeTrip.senderName || 'Customer'}</p>
-                <p className="text-[11px] text-gray-500">{activeTrip.goodsType || 'Commercial Cargo'}</p>
-              </div>
-              <a
-                href={`tel:${activeTrip.senderPhone || '9876543210'}`}
-                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-emerald-600/20"
-              >
-                <Phone className="w-3.5 h-3.5" />
-                <span>Call Customer</span>
-              </a>
-            </div>
-
-            {/* Trip Completion & OTP Gate */}
-            {tripCompletedSuccess ? (
-              <div className="p-6 bg-emerald-50 border border-emerald-300 rounded-2xl text-center space-y-2 animate-fadeIn">
-                <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto" />
-                <h4 className="text-lg font-bold text-gray-900">Trip Delivered & Completed!</h4>
-                <p className="text-xs text-emerald-800">
-                  Fare credited to your driver wallet. Customer app tracking updated to 'Delivered'.
-                </p>
-              </div>
+            {trip.status === 'assigned' ? (
+              <button disabled={busy} onClick={() => act(() => api.post(`/driver/orders/${trip.id}/pickup`))} className="w-full py-3 bg-porter-blue text-white text-sm font-bold rounded-xl disabled:opacity-60">Goods picked up</button>
             ) : (
-              <form onSubmit={handleVerifyOtpAndComplete} className="p-5 bg-blue-50/60 rounded-2xl border border-blue-200 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider">
-                      Verify Customer Delivery OTP
-                    </h4>
-                    <p className="text-[11px] text-gray-500">
-                      Enter the 4-digit code provided by the receiver (the code is shown only on the receiver's phone)
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    maxLength={4}
-                    value={otpInput}
-                    onChange={(e) => setOtpInput(e.target.value)}
-                    placeholder="Enter 4-Digit OTP"
-                    className="flex-1 px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm font-mono font-bold tracking-widest text-center text-gray-900 focus:outline-none focus:ring-2 focus:ring-porter-blue"
-                  />
-                  <button
-                    type="submit"
-                    className="px-6 py-3 bg-porter-blue hover:bg-porter-hover text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-500/25 transition"
-                  >
-                    Complete Delivery
-                  </button>
-                </div>
-                {otpError && <p className="text-xs text-rose-600 font-medium">{otpError}</p>}
+              <form onSubmit={(e) => { e.preventDefault(); act(async () => { await api.post(`/driver/orders/${trip.id}/deliver`, { otp }); setOtp(''); }); }} className="space-y-2">
+                <label htmlFor="otp" className="text-xs font-bold text-gray-700">Receiver's 4-digit OTP</label>
+                <input id="otp" inputMode="numeric" maxLength={4} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} className="w-full px-4 py-3 text-center text-2xl font-mono tracking-[0.5em] bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-porter-blue" />
+                <button disabled={busy || otp.length !== 4} className="w-full py-3 bg-emerald-600 text-white text-sm font-bold rounded-xl disabled:opacity-50 flex items-center justify-center gap-2"><CheckCircle2 className="w-4 h-4" /> Complete delivery</button>
               </form>
             )}
           </div>
         ) : (
-          <div className="bg-white rounded-3xl p-12 border border-gray-200 text-center space-y-3 shadow-sm">
-            <div className="w-16 h-16 rounded-full bg-blue-50 text-porter-blue flex items-center justify-center mx-auto">
-              <Truck className="w-8 h-8" />
-            </div>
-            <h3 className="text-base font-bold text-gray-900">No active deliveries pending</h3>
-            <p className="text-xs text-gray-500 max-w-sm mx-auto">
-              You are <span className="font-bold">{driverOnline ? 'Online' : 'Offline'}</span>. {driverOnline ? 'Use the button above to simulate a customer booking.' : 'Go online to receive dispatches.'}
-            </p>
-          </div>
+          <>
+            {offers.map((o) => <OfferCard key={o.id} offer={o} busy={busy} onAccept={(id) => act(() => api.post(`/driver/offers/${id}/accept`))} onReject={(id) => act(() => api.post(`/driver/offers/${id}/reject`))} />)}
+            {offers.length === 0 && (
+              <div className="bg-white border border-dashed border-gray-300 rounded-2xl p-8 text-center text-sm text-gray-500">
+                {online ? 'You are online. New trip requests will appear here.' : 'Go online to start receiving trips.'}
+              </div>
+            )}
+          </>
         )}
+        <button onClick={logout} className="w-full text-xs text-gray-400 hover:text-gray-600 py-2">Log out</button>
       </div>
     </div>
   );
