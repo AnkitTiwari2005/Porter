@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:server": "npm --prefix server test",
     "dev:api": "npm --prefix server run dev",
-    "check:deploy": "node scripts/check-deploy.mjs --strict"
+    "check:deploy": "node scripts/check-deploy.mjs --strict",
+    "lint": "eslint src shared"
   },
   "dependencies": {
     "leaflet": "^1.9.4",

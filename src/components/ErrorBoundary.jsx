@@ -8,7 +8,9 @@ export default class ErrorBoundary extends React.Component {
   componentDidCatch(error, info) { console.error('App crashed:', error, info); }
 
   resetAndReload = () => {
-    try { ['porter_city', 'porter_user', 'porter_bookings', 'porter_tariffs'].forEach((k) => localStorage.removeItem(k)); } catch { /* ignore */ }
+    try {
+      ['portex_city', 'porter_city', 'porter_user', 'porter_bookings', 'porter_tariffs'].forEach((k) => localStorage.removeItem(k));
+    } catch { /* ignore */ }
     window.location.reload();
   };
 
