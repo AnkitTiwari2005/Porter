@@ -93,10 +93,10 @@ export default function Navbar() {
             <BrandLogo />
           </Link>
 
-          {/* City selector pill */}
+          {/* City selector pill - shown on tablet and desktop; on mobile it is accessible in the menu and hero section */}
           <button
             onClick={() => setIsCityModalOpen(true)}
-            className="flex items-center gap-1 sm:gap-2 px-2.5 py-1 sm:px-3 sm:py-1.5 bg-gray-50 hover:bg-blue-50 border border-gray-200 hover:border-porter-blue/50 rounded-full text-[11px] sm:text-xs font-semibold text-gray-800 transition group shrink-0"
+            className="hidden sm:flex items-center gap-1 sm:gap-2 px-2.5 py-1 sm:px-3 sm:py-1.5 bg-gray-50 hover:bg-blue-50 border border-gray-200 hover:border-porter-blue/50 rounded-full text-[11px] sm:text-xs font-semibold text-gray-800 transition group shrink-0"
           >
             <MapPin className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-porter-blue group-hover:scale-110 transition-transform" />
             <span className="max-w-[75px] sm:max-w-none truncate">{selectedCity?.name || 'Mumbai'}</span>
@@ -272,7 +272,7 @@ export default function Navbar() {
             <span className="text-xs font-bold text-gray-400 uppercase">Selected City</span>
             <button
               onClick={() => { setIsCityModalOpen(true); setMobileMenuOpen(false); }}
-              className="text-xs font-bold text-porter-blue flex items-center gap-1"
+              className="text-xs font-bold text-porter-blue flex items-center gap-1.5 px-3 py-1 bg-blue-50 border border-blue-200/80 rounded-full hover:bg-blue-100 transition"
             >
               <MapPin className="w-3.5 h-3.5" />
               <span>{selectedCity?.name} (Change)</span>
