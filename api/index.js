@@ -35,13 +35,17 @@ async function bootstrap() {
     databaseUrl = `pglite://${tmpDir}`;
   }
 
+  const publicUrl = process.env.PUBLIC_URL || 'https://portex-logistics.vercel.app';
+  const corsOriginsStr = process.env.CORS_ORIGINS || publicUrl;
+  const corsOrigins = corsOriginsStr.split(',').map((s) => s.trim()).filter(Boolean);
+
   const config = {
     NODE_ENV: isPostgres ? (process.env.NODE_ENV || 'production') : 'development',
     PORT: process.env.PORT ? parseInt(process.env.PORT, 10) : 4000,
     DATABASE_URL: databaseUrl,
-    APP_SECRET: process.env.APP_SECRET || 'portex-serverless-secret-key-32-chars-long-minimum',
-    PUBLIC_URL: process.env.PUBLIC_URL || 'https://portex-logistics.vercel.app',
-    CORS_ORIGINS: process.env.CORS_ORIGINS || '',
+    APP_SECRET: process.env.APP_SECRET || 'c4650755aba141868843a819b002e4c9bef5af990f2d4ed9a665756f6ebc4ad7',
+    PUBLIC_URL: publicUrl,
+    CORS_ORIGINS: corsOriginsStr,
     TRUST_PROXY: 1,
     COOKIE_SECURE: process.env.COOKIE_SECURE || 'true',
     BRAND_NAME: 'Portex',
@@ -57,7 +61,7 @@ async function bootstrap() {
     SUPPLIER_STATE: 'Delhi',
     gstRate: 0.05,
     cookieSecure: true,
-    corsOrigins: [],
+    corsOrigins,
     RUN_DISPATCHER: false
   };
 
