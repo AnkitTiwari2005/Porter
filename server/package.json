@@ -5,10 +5,10 @@
   "type": "module",
   "engines": { "node": ">=20" },
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "DATABASE_URL=pglite://./.data node --watch src/index.js",
-    "migrate": "node src/migrate-cli.js",
-    "create-user": "node src/cli/create-user.js",
+    "start": "node --env-file-if-exists=.env src/index.js",
+    "dev": "node --env-file-if-exists=.env --watch src/index.js",
+    "migrate": "node --env-file-if-exists=.env src/migrate-cli.js",
+    "create-user": "node --env-file-if-exists=.env src/cli/create-user.js",
     "test": "vitest run",
     "lint": "eslint src test"
   },
