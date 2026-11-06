@@ -9,9 +9,26 @@ import { seed } from '../server/src/seed.js';
 let appPromise = null;
 
 async function bootstrap() {
-  const isPostgres = (process.env.DATABASE_URL || '').startsWith('postgres');
-  
   let databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    try {
+      const candidates = [
+        path.resolve(process.cwd(), '.env.local'),
+        path.resolve(process.cwd(), 'server/.env')
+      ];
+      for (const p of candidates) {
+        if (fs.existsSync(p)) {
+          const match = fs.readFileSync(p, 'utf8').match(/DATABASE_URL=["']?([^"'\r\n]+)["']?/);
+          if (match && match[1]) {
+            databaseUrl = match[1];
+            break;
+          }
+        }
+      }
+    } catch { /* ignore */ }
+  }
+
+  const isPostgres = (databaseUrl || '').startsWith('postgres');
   if (!databaseUrl) {
     const tmpDir = path.join(os.tmpdir(), 'portex-db');
     try { fs.mkdirSync(tmpDir, { recursive: true }); } catch { /* ignore */ }
