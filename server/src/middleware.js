@@ -32,7 +32,8 @@ export const originGuard = (config) => {
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
     if (req.originalUrl.startsWith('/api/payments/webhook')) return next(); // authenticated by HMAC signature instead
     const origin = req.headers.origin;
-    if (origin) return allowed.has(origin) ? next() : next(new HttpError(403, 'bad_origin', 'Cross-site request blocked.'));
+    const isSameHost = origin && req.headers.host && (origin === `https://${req.headers.host}` || origin === `http://${req.headers.host}`);
+    if (origin && !isSameHost && !allowed.has(origin)) return next(new HttpError(403, 'bad_origin', 'Cross-site request blocked.'));
     const site = req.headers['sec-fetch-site'];
     if (site && !['same-origin', 'none'].includes(site)) return next(new HttpError(403, 'bad_origin', 'Cross-site request blocked.'));
     return next();
