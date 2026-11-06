@@ -9,8 +9,7 @@ import { seed } from '../server/src/seed.js';
 let appPromise = null;
 
 async function bootstrap() {
-  let databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
+  const loadLocalEnvs = () => {
     try {
       const candidates = [
         path.resolve(process.cwd(), '.env.local'),
@@ -18,16 +17,20 @@ async function bootstrap() {
       ];
       for (const p of candidates) {
         if (fs.existsSync(p)) {
-          const match = fs.readFileSync(p, 'utf8').match(/DATABASE_URL=["']?([^"'\r\n]+)["']?/);
-          if (match && match[1]) {
-            databaseUrl = match[1];
-            break;
+          const lines = fs.readFileSync(p, 'utf8').split('\n');
+          for (const line of lines) {
+            const m = line.match(/^\s*([A-Za-z_0-9]+)\s*=\s*["']?([^"'\r\n]*)["']?\s*$/);
+            if (m && !process.env[m[1]]) {
+              process.env[m[1]] = m[2];
+            }
           }
         }
       }
     } catch { /* ignore */ }
-  }
+  };
+  loadLocalEnvs();
 
+  let databaseUrl = process.env.DATABASE_URL;
   const isPostgres = (databaseUrl || '').startsWith('postgres');
   if (!databaseUrl) {
     const tmpDir = path.join(os.tmpdir(), 'portex-db');
@@ -52,7 +55,11 @@ async function bootstrap() {
     SMS_PROVIDER: process.env.SMS_PROVIDER || 'console',
     OTP_DEV_ECHO: process.env.OTP_DEV_ECHO === 'false' ? false : true,
     PAYMENTS_PROVIDER: process.env.PAYMENTS_PROVIDER || 'disabled',
+    RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID,
+    RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET,
+    RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET,
     GEO_PROVIDER: process.env.GEO_PROVIDER || 'local',
+    MAPBOX_TOKEN: process.env.MAPBOX_TOKEN,
     GST_PERCENT: 5,
     DRIVER_PAYOUT_PERCENT: 82,
     CANCEL_FEE_RUPEES: 0,
