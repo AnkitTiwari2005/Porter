@@ -18,6 +18,8 @@ export function AppProvider({ children }) {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isTrackModalOpen, setIsTrackModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [viewingInvoice, setViewingInvoice] = useState(null); // order object for InvoiceModal
+  const [driverDuty, setDriverDuty] = useState({ online: false, vehicleNo: '', rating: 5, loading: false });
 
   const [authReady, setAuthReady] = useState(false);
   const [account, setAccount] = useState(null);              // { id, phone, name, role } | null
@@ -53,6 +55,28 @@ export function AppProvider({ children }) {
 
   // An admin who passed the SMS code but not the authenticator code must finish signing in: reopen the dialog.
   useEffect(() => { if (account?.mfa) setIsLoginModalOpen(true); }, [account]);
+
+  // Keep driver status synced if user is a driver
+  useEffect(() => {
+    if (account?.role === 'driver') {
+      api.get('/driver/me').then((r) => {
+        setDriverDuty({ online: !!r.driver.online, vehicleNo: r.driver.vehicleNo || '', rating: r.driver.rating || 5, loading: false });
+      }).catch(() => {});
+    }
+  }, [account]);
+
+  const toggleDriverDuty = useCallback(async () => {
+    setDriverDuty((d) => ({ ...d, loading: true }));
+    try {
+      const next = !driverDuty.online;
+      await api.post('/driver/online', { online: next });
+      setDriverDuty((d) => ({ ...d, online: next, loading: false }));
+      return next;
+    } catch (err) {
+      setDriverDuty((d) => ({ ...d, loading: false }));
+      throw err;
+    }
+  }, [driverDuty.online]);
   const refreshAccount = useCallback(async () => { const r = await api.get('/me'); setAccount(r.user); return r.user; }, []);
   const updateUserName = useCallback(async (name) => {
     const r = await api.patch('/me', { name });
@@ -122,13 +146,21 @@ export function AppProvider({ children }) {
   }, [refreshOrders]);
 
   const user = useMemo(() => ({
-    isLoggedIn: !!account, mfa: account?.mfa || null, id: account?.id, name: account?.name || '', phone: account?.phone || '', role: account?.role || null
+    isLoggedIn: !!account,
+    mfa: account?.mfa || null,
+    id: account?.id,
+    name: account?.name || '',
+    phone: account?.phone || '',
+    role: account?.role || null,
+    totpEnabled: !!account?.totpEnabled
   }), [account]);
 
   const value = {
     selectedCity, setSelectedCity,
     isCityModalOpen, setIsCityModalOpen, isLoginModalOpen, setIsLoginModalOpen, isTrackModalOpen, setIsTrackModalOpen,
     isProfileModalOpen, setIsProfileModalOpen,
+    viewingInvoice, setViewingInvoice,
+    driverDuty, setDriverDuty, toggleDriverDuty,
     authReady, user, requestOtp, verifyOtp, logout, requireLogin, refreshAccount, updateUserName,
     catalog, catalogError, fleetTariffs, gstRate: catalog?.gstRate ?? 0.05, paymentsEnabled: !!catalog?.paymentsEnabled, cancelFee: catalog?.cancelFeeRupees ?? 0,
     orders, ordersLoading, refreshOrders, bookOrder, payPending, cancelOrder,

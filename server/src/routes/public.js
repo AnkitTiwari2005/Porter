@@ -6,7 +6,7 @@ import { requireUser, requireSession, setSessionCookie, clearSessionCookie, limi
 import { badRequest, forbidden } from '../lib/errors.js';
 import { cityById } from '../../../shared/cities.js';
 
-const userOut = (u) => u && ({ id: u.id, phone: u.phone, name: u.name, role: u.role, mfa: u.mfa || null });
+const userOut = (u) => u && ({ id: u.id, phone: u.phone, name: u.name, role: u.role, totpEnabled: !!(u.totpEnabled ?? u.totp_enabled), mfa: u.mfa || null });
 
 // Strip internals (promo row, full vehicle) before a quote leaves the server.
 export const quoteOut = (q) => ({
@@ -37,9 +37,16 @@ export function publicRoutes({ config, db, auth, quotes, geo, hub }) {
   // Two-factor for admins (authenticator app). Allowed while the session is still waiting for the second factor.
   const adminSession = (req, _res, next) => (req.user?.role === 'admin' ? next() : next(forbidden('Only administrators use two-factor sign-in.')));
   const codeBody = validate(z.object({ code: z.string().regex(/^[0-9]{6}$/, 'Enter the 6-digit code') }));
-  r.post('/auth/totp/setup', authLimit, requireSession, adminSession, wrap(async (req, res) => { res.json(await auth.startTotpSetup(req.user)); }));
+  r.post('/auth/totp/setup', authLimit, requireSession, adminSession, wrap(async (req, res) => {
+    const reset = req.body?.reset === true || req.query?.reset === 'true';
+    res.json(await auth.startTotpSetup(req.user, { reset }));
+  }));
   r.post('/auth/totp/enable', authLimit, requireSession, adminSession, codeBody, wrap(async (req, res) => {
     await auth.enableTotp(req.token, req.user, req.body.code);
+    res.json({ ok: true });
+  }));
+  r.post('/auth/totp/disable', authLimit, requireUser, adminSession, codeBody, wrap(async (req, res) => {
+    await auth.disableTotp(req.token, req.user, req.body.code);
     res.json({ ok: true });
   }));
   r.post('/auth/totp/verify', authLimit, requireSession, adminSession, codeBody, wrap(async (req, res) => {
@@ -49,7 +56,7 @@ export function publicRoutes({ config, db, auth, quotes, geo, hub }) {
 
   r.get('/me', (req, res) => res.json({ user: userOut(req.user) }));
   r.patch('/me', requireUser, validate(z.object({ name: z.string().trim().min(2).max(80) })), wrap(async (req, res) => {
-    const u = (await db.query('UPDATE users SET name = $2, updated_at = now() WHERE id = $1 RETURNING id, phone, name, role', [req.user.id, req.body.name])).rows[0];
+    const u = (await db.query('UPDATE users SET name = $2, updated_at = now() WHERE id = $1 RETURNING id, phone, name, role, totp_enabled', [req.user.id, req.body.name])).rows[0];
     res.json({ user: userOut(u) });
   }));
 

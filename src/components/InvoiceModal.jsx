@@ -29,10 +29,12 @@ export default function InvoiceModal({ isOpen, onClose, order }) {
     w.onload = () => { w.focus(); w.print(); };
   };
 
-  const invoiceNo = `INV-${new Date(order.createdAt || Date.now()).getFullYear()}-${order.orderId.replace(/\D/g, '')}`;
+  const id = order.id || order.orderId || '';
+  const invoiceNo = `INV-${new Date(order.createdAt || Date.now()).getFullYear()}-${id.replace(/\D/g, '') || id}`;
   // Use the real fare breakdown saved at booking time; only legacy orders fall back to back-calculation.
   const p = order.pricing;
-  const taxable = p ? p.subtotal - p.discount : Math.round(order.fare / 1.05);
+  const totalFare = order.total ?? order.fare ?? (p ? p.total : 0);
+  const taxable = p ? p.subtotal - p.discount : Math.round(totalFare / 1.05);
   const gst = p ? p.gst : order.fare - taxable;
   const lineItems = p
     ? [
@@ -88,7 +90,7 @@ export default function InvoiceModal({ isOpen, onClose, order }) {
             <div className="text-right">
               <h2 className="text-lg font-black text-gray-900">TAX INVOICE</h2>
               <p className="text-gray-500 mt-1">Invoice Date: {new Date(order.createdAt || Date.now()).toLocaleDateString()}</p>
-              <p className="text-gray-500">Order ID: <strong className="font-mono text-gray-900">{order.orderId}</strong></p>
+              <p className="text-gray-500">Order ID: <strong className="font-mono text-gray-900">{id}</strong></p>
               <span className="inline-block mt-2 px-2.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[11px]">
                 Payment: {PAYMENT_LABEL[order.paymentStatus] || order.paymentStatus || '—'}
               </span>
@@ -99,16 +101,16 @@ export default function InvoiceModal({ isOpen, onClose, order }) {
           <div className="grid grid-cols-2 gap-6 bg-gray-50 p-4 rounded-2xl border border-gray-100">
             <div>
               <span className="font-bold uppercase text-gray-400 text-[10px] block mb-1">Customer / Consignor</span>
-              <p className="font-bold text-sm text-gray-900">{order.senderName || '—'}</p>
-              <p className="text-gray-600 font-mono mt-0.5">{order.senderPhone || '—'}</p>
-              <p className="text-gray-500 mt-1"><strong className="text-gray-700">Pickup:</strong> {order.pickup}</p>
+              <p className="font-bold text-sm text-gray-900">{order.sender?.name || order.senderName || 'Customer'}</p>
+              <p className="text-gray-600 font-mono mt-0.5">{order.sender?.phone || order.senderPhone || '—'}</p>
+              <p className="text-gray-500 mt-1"><strong className="text-gray-700">Pickup:</strong> {order.pickup?.address || order.pickupAddress || order.pickup || '—'}</p>
             </div>
 
             <div>
               <span className="font-bold uppercase text-gray-400 text-[10px] block mb-1">Consignee (Receiver)</span>
-              <p className="font-bold text-sm text-gray-900">{order.receiverName || '—'}</p>
-              <p className="text-gray-600 font-mono mt-0.5">{order.receiverPhone || '—'}</p>
-              <p className="text-gray-500 mt-1"><strong className="text-gray-700">Drop:</strong> {order.drop}</p>
+              <p className="font-bold text-sm text-gray-900">{order.receiver?.name || order.receiverName || 'Receiver'}</p>
+              <p className="text-gray-600 font-mono mt-0.5">{order.receiver?.phone || order.receiverPhone || '—'}</p>
+              <p className="text-gray-500 mt-1"><strong className="text-gray-700">Drop:</strong> {order.drop?.address || order.dropAddress || order.drop || '—'}</p>
             </div>
           </div>
 
@@ -116,11 +118,11 @@ export default function InvoiceModal({ isOpen, onClose, order }) {
           <div className="flex items-center justify-between p-3.5 bg-blue-50/70 border border-blue-200 rounded-xl">
             <div>
               <span className="text-[10px] text-porter-blue font-bold uppercase">Vehicle & Driver Partner</span>
-              <p className="font-bold text-gray-900">{order.vehicleName} • Driver: {order.driver?.name}</p>
+              <p className="font-bold text-gray-900">{order.vehicleName || 'Cargo Truck'} • Driver: {order.driver?.name || 'Assigned Partner'}</p>
             </div>
             <div className="text-right">
               <span className="text-[10px] text-gray-500 block">Registration Number</span>
-              <span className="font-mono font-bold text-gray-900">{order.driver?.vehicleNo}</span>
+              <span className="font-mono font-bold text-gray-900">{order.driver?.vehicleNo || '—'}</span>
             </div>
           </div>
 

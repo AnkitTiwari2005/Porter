@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { usePageTitle } from '../lib/usePageTitle';
 import { useApp } from '../context/AppContext';
 import { api } from '../lib/api';
@@ -279,7 +280,11 @@ const TABS = [['orders', 'Orders'], ['drivers', 'Drivers'], ['pricing', 'Pricing
 export default function AdminDashboardPage() {
   usePageTitle('Admin console');
   const { user, authReady, requireLogin, logout, setIsLoginModalOpen, setIsProfileModalOpen } = useApp();
-  const [tab, setTab] = useState('orders');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawTab = searchParams.get('tab');
+  const validTabs = ['orders', 'drivers', 'pricing', 'leads', 'audit'];
+  const tab = validTabs.includes(rawTab) ? rawTab : 'orders';
+  const setTab = (t) => setSearchParams({ tab: t });
   const [tick, setTick] = useState(0);
   const stats = useAdmin('/admin/stats', [tick]);
   const isAdmin = user.role === 'admin' && !user.mfa;

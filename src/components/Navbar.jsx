@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { BRANDING, BrandLogo } from '../config/branding';
 import { 
   MapPin, ChevronDown, User, LogOut, Menu, X, 
   Truck, Bike, Calculator, Navigation, Smartphone, HelpCircle, 
-  ShieldCheck, LayoutDashboard, Briefcase, Users, FileText 
+  ShieldCheck, LayoutDashboard, Briefcase, Users, FileText,
+  Banknote, Power, RefreshCw, Receipt 
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -16,6 +17,8 @@ export default function Navbar() {
     setIsTrackModalOpen, 
     isProfileModalOpen,
     setIsProfileModalOpen,
+    driverDuty,
+    toggleDriverDuty,
     user, 
     logout,
     orders
@@ -25,9 +28,11 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [servicesDropdownOpen, setServicesDropdownOpen] = useState(false);
+  const [togglingDuty, setTogglingDuty] = useState(false);
+  const profileDropdownRef = useRef(null);
   const location = useLocation();
 
-  // Close menus on Escape and whenever the route changes.
+  // Close menus on Escape, route changes, or clicks outside.
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape') { setServicesDropdownOpen(false); setProfileDropdownOpen(false); setMobileMenuOpen(false); }
@@ -35,6 +40,22 @@ export default function Navbar() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  useEffect(() => {
+    if (!profileDropdownOpen) return undefined;
+    const onClickOutside = (e) => {
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(e.target)) {
+        setProfileDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onClickOutside);
+    document.addEventListener('touchstart', onClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', onClickOutside);
+      document.removeEventListener('touchstart', onClickOutside);
+    };
+  }, [profileDropdownOpen]);
+
   useEffect(() => {
     setServicesDropdownOpen(false); setProfileDropdownOpen(false); setMobileMenuOpen(false);
   }, [location.pathname]);
@@ -208,7 +229,7 @@ export default function Navbar() {
         {/* Right CTA Actions */}
         <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           {user.isLoggedIn ? (
-            <div className="relative">
+            <div className="relative" ref={profileDropdownRef}>
               <button
                 onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
                 className={`flex items-center gap-1.5 sm:gap-2 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full border transition shrink-0 ${
@@ -235,6 +256,13 @@ export default function Navbar() {
                   ) : (
                     <span>{user.name ? user.name.charAt(0).toUpperCase() : 'U'}</span>
                   )}
+                  {user.role === 'driver' && (
+                    <span
+                      className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${
+                        driverDuty.online ? 'bg-emerald-500' : 'bg-gray-400'
+                      }`}
+                    />
+                  )}
                 </div>
 
                 <div className="text-left hidden md:block">
@@ -250,7 +278,7 @@ export default function Navbar() {
                         : 'text-gray-400'
                     }`}
                   >
-                    {user.role === 'admin' ? 'Admin' : user.role === 'driver' ? 'Partner' : 'Customer'}
+                    {user.role === 'admin' ? 'Admin' : user.role === 'driver' ? (driverDuty.online ? 'Partner • On' : 'Partner • Off') : 'Customer'}
                   </span>
                 </div>
 
@@ -275,28 +303,53 @@ export default function Navbar() {
 
                       <div className="py-1">
                         <Link
-                          to="/admin"
+                          to="/admin?tab=orders"
                           onClick={() => setProfileDropdownOpen(false)}
-                          className="w-full text-left px-4 py-2 text-xs text-indigo-900 hover:bg-indigo-50 flex items-center gap-2.5 font-bold transition"
+                          className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-indigo-50 hover:text-indigo-900 flex items-center gap-2.5 font-bold transition"
                         >
                           <LayoutDashboard className="w-4 h-4 text-indigo-600" />
-                          <span>Admin Console</span>
+                          <span>Orders Console</span>
                         </Link>
-                        <button
-                          onClick={() => { setIsProfileModalOpen(true); setProfileDropdownOpen(false); }}
-                          className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 font-medium transition"
-                        >
-                          <ShieldCheck className="w-4 h-4 text-indigo-500" />
-                          <span>Admin Profile & 2FA</span>
-                        </button>
                         <Link
-                          to="/enterprise"
+                          to="/admin?tab=drivers"
                           onClick={() => setProfileDropdownOpen(false)}
-                          className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 font-medium transition"
+                          className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-indigo-50 hover:text-indigo-900 flex items-center gap-2.5 font-medium transition"
+                        >
+                          <Truck className="w-4 h-4 text-gray-400" />
+                          <span>Driver Partners</span>
+                        </Link>
+                        <Link
+                          to="/admin?tab=pricing"
+                          onClick={() => setProfileDropdownOpen(false)}
+                          className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-indigo-50 hover:text-indigo-900 flex items-center gap-2.5 font-medium transition"
+                        >
+                          <Banknote className="w-4 h-4 text-gray-400" />
+                          <span>Pricing & Promos</span>
+                        </Link>
+                        <Link
+                          to="/admin?tab=leads"
+                          onClick={() => setProfileDropdownOpen(false)}
+                          className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-indigo-50 hover:text-indigo-900 flex items-center gap-2.5 font-medium transition"
                         >
                           <Briefcase className="w-4 h-4 text-gray-400" />
-                          <span>Enterprise Inquiries</span>
+                          <span>Enterprise Leads</span>
                         </Link>
+                        <Link
+                          to="/admin?tab=audit"
+                          onClick={() => setProfileDropdownOpen(false)}
+                          className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-indigo-50 hover:text-indigo-900 flex items-center gap-2.5 font-medium transition"
+                        >
+                          <FileText className="w-4 h-4 text-gray-400" />
+                          <span>System Audit Log</span>
+                        </Link>
+                        <div className="border-t border-gray-100 my-1"></div>
+                        <button
+                          onClick={() => { setIsProfileModalOpen(true); setProfileDropdownOpen(false); }}
+                          className="w-full text-left px-4 py-2 text-xs text-indigo-700 hover:bg-indigo-50 flex items-center gap-2.5 font-bold transition"
+                        >
+                          <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                          <span>Admin Profile & 2FA</span>
+                        </button>
                       </div>
 
                       <div className="border-t border-gray-100 pt-1">
@@ -322,6 +375,33 @@ export default function Navbar() {
                           </span>
                         </div>
                         <p className="text-[11px] text-gray-500 font-mono mt-0.5">+91 {user.phone}</p>
+                      </div>
+
+                      {/* Real-time Duty Toggle in Dropdown */}
+                      <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase">Duty Status</p>
+                          <p className="text-xs font-bold text-gray-800 flex items-center gap-1.5 mt-0.5">
+                            <span className={`w-2 h-2 rounded-full ${driverDuty.online ? 'bg-emerald-500 animate-ping' : 'bg-gray-400'}`}></span>
+                            <span>{driverDuty.online ? 'Online' : 'Offline'}</span>
+                          </p>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            setTogglingDuty(true);
+                            try { await toggleDriverDuty(); } catch {}
+                            setTogglingDuty(false);
+                          }}
+                          disabled={togglingDuty}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition ${
+                            driverDuty.online
+                              ? 'bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100'
+                              : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm'
+                          }`}
+                        >
+                          <Power className="w-3 h-3" />
+                          <span>{driverDuty.online ? 'Go Offline' : 'Go Online'}</span>
+                        </button>
                       </div>
 
                       <div className="py-1">
@@ -390,6 +470,13 @@ export default function Navbar() {
                           <Calculator className="w-4 h-4 text-gray-400" />
                           <span>Book Delivery</span>
                         </Link>
+                        <button
+                          onClick={() => { setIsProfileModalOpen(true); setProfileDropdownOpen(false); }}
+                          className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-blue-50 hover:text-porter-blue flex items-center gap-2.5 font-medium transition"
+                        >
+                          <Receipt className="w-4 h-4 text-gray-400" />
+                          <span>Past Invoices</span>
+                        </button>
                       </div>
 
                       <div className="border-t border-gray-100 pt-1">

@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { api } from '../lib/api';
 import { STATUS_BADGE } from './TrackOrderModal';
 import {
-  X, User, ShieldCheck, Truck, MapPin, CheckCircle, Download,
+  X, User, ShieldCheck, Truck, MapPin, Download,
   ExternalLink, Power, AlertTriangle, Key, Copy, Check, Edit2,
-  LogOut, RefreshCw, FileText, Calendar, Award, Phone, Hash
+  LogOut, RefreshCw, FileText, Phone, Banknote, Briefcase, Eye,
+  Lock, CheckCircle2, ChevronRight
 } from 'lucide-react';
 
 export default function ProfileModal() {
@@ -16,12 +17,18 @@ export default function ProfileModal() {
     user,
     logout,
     updateUserName,
+    refreshAccount,
     orders,
     selectedCity,
     setIsCityModalOpen,
     setIsTrackModalOpen,
-    setActiveTrackingOrderId
+    setActiveTrackingOrderId,
+    setViewingInvoice,
+    driverDuty,
+    toggleDriverDuty
   } = useApp();
+
+  const navigate = useNavigate();
 
   const [editName, setEditName] = useState(false);
   const [nameVal, setNameVal] = useState('');
@@ -35,11 +42,15 @@ export default function ProfileModal() {
   const [togglingOnline, setTogglingOnline] = useState(false);
 
   // Admin 2FA
-  const [totpSetup, setTotpSetup] = useState({ open: false, secret: '', url: '', code: '', busy: false });
+  const [totpSetup, setTotpSetup] = useState({ open: false, reset: false, secret: '', url: '', code: '', busy: false });
+  const [totpDisable, setTotpDisable] = useState({ open: false, code: '', busy: false });
+
+  // Customer order filter tab
+  const [orderFilter, setOrderFilter] = useState('all'); // 'all' | 'delivered' | 'active'
 
   const modalRef = useRef(null);
 
-  // Initialize name
+  // Keep name synced
   useEffect(() => {
     if (user.name) setNameVal(user.name);
   }, [user.name]);
@@ -71,19 +82,21 @@ export default function ProfileModal() {
     setIsProfileModalOpen(false);
     setEditName(false);
     setStatusMsg({ type: '', text: '' });
-    setTotpSetup({ open: false, secret: '', url: '', code: '', busy: false });
+    setTotpSetup({ open: false, reset: false, secret: '', url: '', code: '', busy: false });
+    setTotpDisable({ open: false, code: '', busy: false });
   };
 
   const handleSaveName = async (e) => {
     e.preventDefault();
-    if (!nameVal.trim() || nameVal.trim().length < 2) {
+    const trimmed = nameVal.trim();
+    if (!trimmed || trimmed.length < 2) {
       setStatusMsg({ type: 'error', text: 'Name must be at least 2 characters.' });
       return;
     }
     setSavingName(true);
     setStatusMsg({ type: '', text: '' });
     try {
-      await updateUserName(nameVal.trim());
+      await updateUserName(trimmed);
       setEditName(false);
       setStatusMsg({ type: 'success', text: 'Display name updated successfully.' });
     } catch (err) {
@@ -102,16 +115,20 @@ export default function ProfileModal() {
   };
 
   const handleDriverToggleOnline = async () => {
-    if (!driverData?.driver) return;
     setTogglingOnline(true);
+    setStatusMsg({ type: '', text: '' });
     try {
-      const nextOnline = !driverData.driver.online;
-      await api.post('/driver/online', { online: nextOnline });
-      setDriverData((prev) => ({
-        ...prev,
-        driver: { ...prev.driver, online: nextOnline }
-      }));
-      setStatusMsg({ type: 'success', text: nextOnline ? 'You are now Online and receiving trips.' : 'You went Offline.' });
+      const nextOnline = await toggleDriverDuty();
+      if (driverData?.driver) {
+        setDriverData((prev) => ({
+          ...prev,
+          driver: { ...prev.driver, online: nextOnline }
+        }));
+      }
+      setStatusMsg({
+        type: 'success',
+        text: nextOnline ? 'You are now Online and receiving trip requests.' : 'You went Offline.'
+      });
     } catch (err) {
       setStatusMsg({ type: 'error', text: err.message });
     } finally {
@@ -119,12 +136,12 @@ export default function ProfileModal() {
     }
   };
 
-  const handleStartTotp = async () => {
-    setTotpSetup((t) => ({ ...t, busy: true }));
+  const handleStartTotp = async (reset = false) => {
+    setTotpSetup((t) => ({ ...t, busy: true, reset }));
     setStatusMsg({ type: '', text: '' });
     try {
-      const res = await api.post('/auth/totp/setup');
-      setTotpSetup({ open: true, secret: res.secret, url: res.otpauthUrl, code: '', busy: false });
+      const res = await api.post('/auth/totp/setup', { reset });
+      setTotpSetup({ open: true, reset, secret: res.secret, url: res.otpauthUrl, code: '', busy: false });
     } catch (err) {
       setTotpSetup((t) => ({ ...t, busy: false }));
       setStatusMsg({ type: 'error', text: err.message });
@@ -140,7 +157,8 @@ export default function ProfileModal() {
     setTotpSetup((t) => ({ ...t, busy: true }));
     try {
       await api.post('/auth/totp/enable', { code: totpSetup.code });
-      setTotpSetup({ open: false, secret: '', url: '', code: '', busy: false });
+      await refreshAccount();
+      setTotpSetup({ open: false, reset: false, secret: '', url: '', code: '', busy: false });
       setStatusMsg({ type: 'success', text: 'Two-factor authentication successfully enabled!' });
     } catch (err) {
       setTotpSetup((t) => ({ ...t, busy: false }));
@@ -148,8 +166,37 @@ export default function ProfileModal() {
     }
   };
 
+  const handleDisableTotp = async (e) => {
+    e.preventDefault();
+    if (!/^[0-9]{6}$/.test(totpDisable.code)) {
+      setStatusMsg({ type: 'error', text: 'Enter the 6-digit code from your authenticator app to confirm.' });
+      return;
+    }
+    setTotpDisable((t) => ({ ...t, busy: true }));
+    try {
+      await api.post('/auth/totp/disable', { code: totpDisable.code });
+      await refreshAccount();
+      setTotpDisable({ open: false, code: '', busy: false });
+      setStatusMsg({ type: 'success', text: 'Two-factor authentication has been disabled.' });
+    } catch (err) {
+      setTotpDisable((t) => ({ ...t, busy: false }));
+      setStatusMsg({ type: 'error', text: err.message });
+    }
+  };
+
+  const navigateToAdminTab = (tab) => {
+    close();
+    navigate(`/admin?tab=${tab}`);
+  };
+
   const activeOrders = orders.filter((o) => !['delivered', 'cancelled'].includes(o.status));
   const completedOrders = orders.filter((o) => o.status === 'delivered');
+
+  const filteredCustomerOrders = orders.filter((o) => {
+    if (orderFilter === 'active') return !['delivered', 'cancelled'].includes(o.status);
+    if (orderFilter === 'delivered') return o.status === 'delivered';
+    return true;
+  });
 
   return (
     <div
@@ -205,7 +252,7 @@ export default function ProfileModal() {
                       : 'bg-white/20 text-white border border-white/20'
                   }`}
                 >
-                  {user.role === 'admin' ? 'System Administrator' : user.role === 'driver' ? 'Driver Partner' : 'Customer'}
+                  {user.role === 'admin' ? 'Administrator' : user.role === 'driver' ? 'Driver Partner' : 'Customer'}
                 </span>
               </div>
               <p className="text-xs text-white/80 font-mono mt-0.5 flex items-center gap-1.5">
@@ -248,7 +295,7 @@ export default function ProfileModal() {
               <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Account Credentials</span>
               <button
                 onClick={handleCopyId}
-                className="text-[11px] font-mono text-gray-500 hover:text-gray-800 flex items-center gap-1 bg-white px-2 py-0.5 rounded-lg border border-gray-200"
+                className="text-[11px] font-mono text-gray-500 hover:text-gray-800 flex items-center gap-1 bg-white px-2 py-0.5 rounded-lg border border-gray-200 transition"
               >
                 {copiedId ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3 text-gray-400" />}
                 <span>ID: {user.id ? user.id.slice(0, 8) + '…' : '—'}</span>
@@ -256,7 +303,7 @@ export default function ProfileModal() {
             </div>
 
             <div className="flex items-center justify-between bg-white border border-gray-200 rounded-xl p-3">
-              <div>
+              <div className="flex-1 mr-2">
                 <p className="text-[10px] uppercase font-bold text-gray-400">Display Name</p>
                 {editName ? (
                   <form onSubmit={handleSaveName} className="flex items-center gap-2 mt-1">
@@ -264,20 +311,20 @@ export default function ProfileModal() {
                       type="text"
                       value={nameVal}
                       onChange={(e) => setNameVal(e.target.value)}
-                      className="px-2.5 py-1 text-xs border border-porter-blue rounded-lg font-bold text-gray-900 focus:outline-none"
+                      className="px-2.5 py-1 text-xs border border-porter-blue rounded-lg font-bold text-gray-900 focus:outline-none w-full max-w-xs"
                       autoFocus
                     />
                     <button
                       type="submit"
                       disabled={savingName}
-                      className="px-2.5 py-1 bg-porter-blue text-white rounded-lg text-xs font-bold hover:bg-blue-600 disabled:opacity-50"
+                      className="px-2.5 py-1 bg-porter-blue text-white rounded-lg text-xs font-bold hover:bg-blue-600 disabled:opacity-50 shrink-0"
                     >
-                      Save
+                      {savingName ? 'Saving…' : 'Save'}
                     </button>
                     <button
                       type="button"
                       onClick={() => { setEditName(false); setNameVal(user.name); }}
-                      className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700"
+                      className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700 shrink-0"
                     >
                       Cancel
                     </button>
@@ -289,7 +336,7 @@ export default function ProfileModal() {
               {!editName && (
                 <button
                   onClick={() => setEditName(true)}
-                  className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition"
+                  className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition shrink-0"
                   title="Edit Name"
                 >
                   <Edit2 className="w-4 h-4" />
@@ -298,13 +345,12 @@ export default function ProfileModal() {
             </div>
           </div>
 
-          {/* ROLE SPECIFIC SECTIONS */}
-
           {/* ============================================================== */}
           {/* 1. ADMINISTRATOR SPECIFIC SECTION                               */}
           {/* ============================================================== */}
           {user.role === 'admin' && (
             <div className="space-y-4">
+              {/* TOTP 2FA Security Section */}
               <div className="bg-indigo-50/60 border border-indigo-100 rounded-2xl p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -313,17 +359,28 @@ export default function ProfileModal() {
                       Two-Factor Authentication (TOTP)
                     </h3>
                   </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                    Security Policy Active
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                      user.totpEnabled
+                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                        : 'bg-amber-100 text-amber-800 border border-amber-200'
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${user.totpEnabled ? 'bg-emerald-600' : 'bg-amber-600'}`} />
+                    {user.totpEnabled ? '2FA Active' : '2FA Not Configured'}
                   </span>
                 </div>
+
                 <p className="text-xs text-gray-600 leading-relaxed">
-                  Protect operations by requiring a 6-digit authenticator code (Google Authenticator, Authy, or 1Password) on admin login.
+                  {user.totpEnabled
+                    ? 'Your administrator account is protected with a time-based authenticator app (Google Authenticator, Authy, or 1Password).'
+                    : 'Add an extra layer of security. Require a 6-digit code from your authenticator app on every admin sign-in.'}
                 </p>
 
+                {/* Setup / Enable Form */}
                 {totpSetup.open ? (
                   <form onSubmit={handleConfirmTotp} className="bg-white border border-indigo-200 rounded-xl p-4 space-y-3 animate-fadeIn">
-                    <p className="text-xs font-bold text-indigo-900">Scan or copy your Authenticator key:</p>
+                    <p className="text-xs font-bold text-indigo-900">1. Scan QR code or copy this setup key into your Authenticator app:</p>
                     <div className="bg-slate-900 text-amber-300 p-2.5 rounded-lg font-mono text-xs select-all break-all text-center">
                       {totpSetup.secret}
                     </div>
@@ -336,7 +393,7 @@ export default function ProfileModal() {
                       </a>
                     )}
                     <div className="space-y-1">
-                      <label className="text-[11px] font-bold text-gray-700">Enter verification code from app:</label>
+                      <label className="text-[11px] font-bold text-gray-700">2. Enter verification code from app to activate:</label>
                       <input
                         type="text"
                         maxLength={6}
@@ -349,52 +406,140 @@ export default function ProfileModal() {
                     <div className="flex gap-2">
                       <button
                         type="button"
-                        onClick={() => setTotpSetup({ open: false, secret: '', url: '', code: '', busy: false })}
-                        className="flex-1 py-2 text-xs font-bold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200"
+                        onClick={() => setTotpSetup({ open: false, reset: false, secret: '', url: '', code: '', busy: false })}
+                        className="flex-1 py-2 text-xs font-bold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition"
                       >
                         Cancel
                       </button>
                       <button
                         type="submit"
                         disabled={totpSetup.busy || totpSetup.code.length !== 6}
-                        className="flex-1 py-2 text-xs font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 disabled:opacity-50"
+                        className="flex-1 py-2 text-xs font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition"
                       >
                         {totpSetup.busy ? 'Verifying…' : 'Activate 2FA'}
                       </button>
                     </div>
                   </form>
+                ) : totpDisable.open ? (
+                  /* Disable Form */
+                  <form onSubmit={handleDisableTotp} className="bg-white border border-rose-200 rounded-xl p-4 space-y-3 animate-fadeIn">
+                    <p className="text-xs font-bold text-rose-900">Enter code from your authenticator app to disable 2FA:</p>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      value={totpDisable.code}
+                      onChange={(e) => setTotpDisable({ ...totpDisable, code: e.target.value.replace(/\D/g, '') })}
+                      placeholder="000000"
+                      className="w-full text-center text-lg font-mono font-bold tracking-widest px-3 py-2 border border-rose-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setTotpDisable({ open: false, code: '', busy: false })}
+                        className="flex-1 py-2 text-xs font-bold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={totpDisable.busy || totpDisable.code.length !== 6}
+                        className="flex-1 py-2 text-xs font-bold text-white bg-rose-600 rounded-xl hover:bg-rose-700 disabled:opacity-50 transition"
+                      >
+                        {totpDisable.busy ? 'Disabling…' : 'Confirm Disable'}
+                      </button>
+                    </div>
+                  </form>
                 ) : (
-                  <button
-                    onClick={handleStartTotp}
-                    disabled={totpSetup.busy}
-                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shadow-sm"
-                  >
-                    <Key className="w-3.5 h-3.5" />
-                    <span>Configure / Refresh Authenticator (2FA)</span>
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    {user.totpEnabled ? (
+                      <>
+                        <button
+                          onClick={() => handleStartTotp(true)}
+                          disabled={totpSetup.busy}
+                          className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>Reconfigure 2FA Device</span>
+                        </button>
+                        <button
+                          onClick={() => setTotpDisable({ open: true, code: '', busy: false })}
+                          className="py-2.5 px-3 bg-white border border-gray-300 hover:bg-rose-50 hover:text-rose-600 text-gray-700 text-xs font-bold rounded-xl transition"
+                        >
+                          Disable 2FA
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => handleStartTotp(false)}
+                        disabled={totpSetup.busy}
+                        className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm"
+                      >
+                        <Lock className="w-3.5 h-3.5" />
+                        <span>Enable Two-Factor Authentication</span>
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
 
-              {/* Admin Shortcuts Grid */}
+              {/* Admin Jump Cards */}
               <div className="space-y-2">
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Management Consoles</p>
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Admin Console Navigation</p>
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  <Link
-                    to="/admin"
-                    onClick={close}
-                    className="p-3 bg-white hover:bg-indigo-50/50 border border-gray-200 rounded-xl font-bold text-gray-800 flex items-center justify-between transition group"
+                  <button
+                    onClick={() => navigateToAdminTab('orders')}
+                    className="p-3 bg-white hover:bg-indigo-50/50 border border-gray-200 rounded-xl font-bold text-gray-800 flex items-center justify-between transition group text-left"
                   >
-                    <span>Full Admin Console</span>
-                    <ExternalLink className="w-3.5 h-3.5 text-indigo-500 group-hover:translate-x-0.5 transition-transform" />
-                  </Link>
-                  <Link
-                    to="/enterprise"
-                    onClick={close}
-                    className="p-3 bg-white hover:bg-indigo-50/50 border border-gray-200 rounded-xl font-bold text-gray-800 flex items-center justify-between transition group"
+                    <div className="flex items-center gap-2">
+                      <Truck className="w-4 h-4 text-indigo-500" />
+                      <span>Live Orders</span>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:translate-x-0.5 transition-transform" />
+                  </button>
+
+                  <button
+                    onClick={() => navigateToAdminTab('drivers')}
+                    className="p-3 bg-white hover:bg-indigo-50/50 border border-gray-200 rounded-xl font-bold text-gray-800 flex items-center justify-between transition group text-left"
                   >
-                    <span>Enterprise Leads</span>
-                    <ExternalLink className="w-3.5 h-3.5 text-indigo-500 group-hover:translate-x-0.5 transition-transform" />
-                  </Link>
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-indigo-500" />
+                      <span>Drivers & KYC</span>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:translate-x-0.5 transition-transform" />
+                  </button>
+
+                  <button
+                    onClick={() => navigateToAdminTab('pricing')}
+                    className="p-3 bg-white hover:bg-indigo-50/50 border border-gray-200 rounded-xl font-bold text-gray-800 flex items-center justify-between transition group text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Banknote className="w-4 h-4 text-indigo-500" />
+                      <span>Pricing & Coupons</span>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:translate-x-0.5 transition-transform" />
+                  </button>
+
+                  <button
+                    onClick={() => navigateToAdminTab('leads')}
+                    className="p-3 bg-white hover:bg-indigo-50/50 border border-gray-200 rounded-xl font-bold text-gray-800 flex items-center justify-between transition group text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Briefcase className="w-4 h-4 text-indigo-500" />
+                      <span>Enterprise Leads</span>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:translate-x-0.5 transition-transform" />
+                  </button>
+
+                  <button
+                    onClick={() => navigateToAdminTab('audit')}
+                    className="p-3 bg-white hover:bg-indigo-50/50 border border-gray-200 rounded-xl font-bold text-gray-800 flex items-center justify-between transition group text-left col-span-2"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-indigo-500" />
+                      <span>System Audit Trail & Security Logs</span>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:translate-x-0.5 transition-transform" />
+                  </button>
                 </div>
               </div>
             </div>
@@ -515,7 +660,7 @@ export default function ProfileModal() {
                 </div>
               </div>
 
-              {/* City & Quick Booking */}
+              {/* City Preference */}
               <div className="flex items-center justify-between p-3.5 bg-gray-50 border border-gray-200 rounded-xl">
                 <div className="flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-porter-blue" />
@@ -532,30 +677,36 @@ export default function ProfileModal() {
                 </button>
               </div>
 
-              {/* Recent Orders with Invoices */}
+              {/* Orders & Invoices List */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Recent Orders & Invoices</span>
-                  {orders.length > 0 && (
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Orders & Trip Receipts</span>
+                  <div className="flex gap-1 bg-gray-100 p-0.5 rounded-lg text-[10px] font-bold">
                     <button
-                      onClick={() => { close(); setIsTrackModalOpen(true); }}
-                      className="text-xs font-bold text-porter-blue hover:underline"
+                      onClick={() => setOrderFilter('all')}
+                      className={`px-2 py-0.5 rounded transition ${orderFilter === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
                     >
-                      View All ({orders.length})
+                      All ({orders.length})
                     </button>
-                  )}
+                    <button
+                      onClick={() => setOrderFilter('delivered')}
+                      className={`px-2 py-0.5 rounded transition ${orderFilter === 'delivered' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
+                    >
+                      Invoices ({completedOrders.length})
+                    </button>
+                  </div>
                 </div>
 
-                {orders.length === 0 ? (
+                {filteredCustomerOrders.length === 0 ? (
                   <div className="p-6 border border-dashed border-gray-200 rounded-2xl text-center text-xs text-gray-500">
-                    You haven't placed any orders yet.
+                    {orderFilter === 'delivered' ? 'No delivered orders eligible for invoice download yet.' : "You haven't placed any orders yet."}
                   </div>
                 ) : (
-                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                    {orders.slice(0, 3).map((o) => {
+                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                    {filteredCustomerOrders.map((o) => {
                       const badge = STATUS_BADGE[o.status] || STATUS_BADGE.searching;
                       return (
-                        <div key={o.id} className="p-3 bg-white border border-gray-200 rounded-xl flex items-center justify-between text-xs">
+                        <div key={o.id} className="p-3 bg-white border border-gray-200 rounded-xl flex items-center justify-between text-xs hover:border-gray-300 transition">
                           <div className="min-w-0 flex-1 pr-2">
                             <div className="flex items-center gap-2">
                               <span className="font-mono font-bold text-gray-900">{o.id}</span>
@@ -564,22 +715,32 @@ export default function ProfileModal() {
                               </span>
                             </div>
                             <p className="text-[11px] text-gray-500 truncate mt-0.5">
-                              {o.pickup?.address} → {o.drop?.address}
+                              {o.pickup?.address || 'Pickup'} → {o.drop?.address || 'Drop'}
                             </p>
                           </div>
 
                           <div className="flex items-center gap-2 shrink-0">
                             <span className="font-black text-gray-900">₹{o.total}</span>
                             {o.status === 'delivered' ? (
-                              <a
-                                href={api.url(`/orders/${o.id}/invoice.pdf`)}
-                                target="_blank"
-                                rel="noreferrer"
-                                title="Download Tax Invoice"
-                                className="p-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-600 transition"
-                              >
-                                <Download className="w-3.5 h-3.5 text-gray-600" />
-                              </a>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => setViewingInvoice(o)}
+                                  className="px-2 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-porter-blue text-[11px] font-bold flex items-center gap-1 transition"
+                                  title="View Itemized Tax Invoice"
+                                >
+                                  <Eye className="w-3 h-3" />
+                                  <span>Invoice</span>
+                                </button>
+                                <a
+                                  href={api.url(`/orders/${o.id}/invoice.pdf`)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  title="Download PDF"
+                                  className="p-1 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition"
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                </a>
+                              </div>
                             ) : (
                               <button
                                 onClick={() => {
@@ -587,9 +748,9 @@ export default function ProfileModal() {
                                   setActiveTrackingOrderId(o.id);
                                   setIsTrackModalOpen(true);
                                 }}
-                                className="px-2 py-1 bg-blue-50 text-porter-blue font-bold text-[11px] rounded-lg hover:bg-blue-100"
+                                className="px-2 py-1 bg-blue-50 text-porter-blue font-bold text-[11px] rounded-lg hover:bg-blue-100 transition"
                               >
-                                Track
+                                Track Live
                               </button>
                             )}
                           </div>

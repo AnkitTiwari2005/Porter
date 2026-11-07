@@ -89,7 +89,7 @@ export function createAuth({ db, config, sms, clock, log = console }) {
        WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > $2`, [tokenHash(token), clock.now()]);
     const u = r.rows[0];
     if (!u || u.status !== 'active') return null;
-    return { id: u.id, phone: u.phone, name: u.name, role: u.role, mfa: u.mfa_ok ? null : (u.totp_enabled ? 'verify' : 'setup') };
+    return { id: u.id, phone: u.phone, name: u.name, role: u.role, totpEnabled: !!u.totp_enabled, mfa: u.mfa_ok ? null : (u.totp_enabled ? 'verify' : 'setup') };
   }
 
   async function logout(token) {
@@ -101,9 +101,9 @@ export function createAuth({ db, config, sms, clock, log = console }) {
   }
 
   // ---- admin two-factor (TOTP)
-  async function startTotpSetup(user) {
+  async function startTotpSetup(user, { reset = false } = {}) {
     const row = (await db.query('SELECT totp_enabled FROM users WHERE id = $1', [user.id])).rows[0];
-    if (row.totp_enabled) throw conflict('already_enabled', 'Two-factor authentication is already enabled.');
+    if (row.totp_enabled && !reset) throw conflict('already_enabled', 'Two-factor authentication is already enabled.');
     const secret = newSecret();
     await db.query('UPDATE users SET totp_secret = $2 WHERE id = $1', [user.id, encrypt(config.APP_SECRET, secret)]);
     return { secret, otpauthUrl: otpauthUrl(secret, user.phone, config.BRAND_NAME) };
@@ -132,5 +132,10 @@ export function createAuth({ db, config, sms, clock, log = console }) {
     await db.query('UPDATE sessions SET mfa_ok = true, mfa_attempts = 0 WHERE token_hash = $1', [tokenHash(token)]);
   }
 
-  return { requestOtp, verifyOtp, authenticate, logout, revokeAllForUser, startTotpSetup, enableTotp, verifyTotpForSession, sha256 };
+  async function disableTotp(token, user, code) {
+    await checkTotp(user.id, code);
+    await db.query('UPDATE users SET totp_enabled = false, totp_secret = NULL, totp_last_step = NULL WHERE id = $1', [user.id]);
+  }
+
+  return { requestOtp, verifyOtp, authenticate, logout, revokeAllForUser, startTotpSetup, enableTotp, verifyTotpForSession, disableTotp, sha256 };
 }

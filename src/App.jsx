@@ -7,6 +7,8 @@ import CitySelectorModal from './components/CitySelectorModal';
 import LoginModal from './components/LoginModal';
 import TrackOrderModal from './components/TrackOrderModal';
 import ProfileModal from './components/ProfileModal';
+import InvoiceModal from './components/InvoiceModal';
+import { useApp } from './context/AppContext';
 
 import HomePage from './pages/HomePage';
 import FareEstimatePage from './pages/FareEstimatePage';
@@ -29,6 +31,19 @@ function ScrollToTop() {
     window.scrollTo(0, 0);
   }, [pathname]);
   return null;
+}
+
+function GlobalModals() {
+  const { viewingInvoice, setViewingInvoice } = useApp();
+  return (
+    <>
+      <CitySelectorModal />
+      <LoginModal />
+      <TrackOrderModal />
+      <ProfileModal />
+      <InvoiceModal isOpen={!!viewingInvoice} onClose={() => setViewingInvoice(null)} order={viewingInvoice} />
+    </>
+  );
 }
 
 export default function App() {
@@ -65,10 +80,7 @@ export default function App() {
           <Footer />
 
           {/* Global Dialogs & Modals */}
-          <CitySelectorModal />
-          <LoginModal />
-          <TrackOrderModal />
-          <ProfileModal />
+          <GlobalModals />
         </div>
       </BrowserRouter>
     </AppProvider>
