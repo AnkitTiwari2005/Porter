@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { usePageTitle } from '../lib/usePageTitle';
 import { useApp } from '../context/AppContext';
 import { api } from '../lib/api';
 import { CITIES } from '../data/mockData';
@@ -88,38 +89,89 @@ function OrdersTab({ onChanged }) {
 function DriversTab() {
   const { data, error, reload } = useAdmin('/admin/drivers');
   const vehicles = useAdmin('/admin/vehicles');
-  const [form, setForm] = useState({ name: '', phone: '', cityId: 'mumbai', vehicleId: 'tata-ace', vehicleNo: '' });
+  const blank = { name: '', phone: '', cityId: 'mumbai', vehicleId: 'tata-ace', vehicleNo: '', licenseNo: '', licenseExpiry: '', rcExpiry: '', insuranceExpiry: '' };
+  const [form, setForm] = useState(blank);
   const [msg, setMsg] = useState('');
+  const [editing, setEditing] = useState(null); // driver id whose documents are being edited
+  const [docs, setDocs] = useState({});
+  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+  const docsOf = (f) => (f.licenseNo || f.licenseExpiry || f.rcExpiry || f.insuranceExpiry
+    ? { documents: { licenseNo: f.licenseNo, licenseExpiry: f.licenseExpiry, rcExpiry: f.rcExpiry, insuranceExpiry: f.insuranceExpiry } } : {});
+
   const submit = async (e) => {
     e.preventDefault(); setMsg('');
-    try { await api.post('/admin/drivers', form); setForm({ ...form, name: '', phone: '', vehicleNo: '' }); reload(); } catch (err) { setMsg(err.message); }
+    try {
+      await api.post('/admin/drivers', { name: form.name, phone: form.phone, cityId: form.cityId, vehicleId: form.vehicleId, vehicleNo: form.vehicleNo, ...docsOf(form) });
+      setForm(blank); reload();
+    } catch (err) { setMsg(err.message); }
   };
-  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+  const setStatus = async (d, status) => {
+    setMsg('');
+    try { await api.patch(`/admin/drivers/${d.id}`, { status }); reload(); }
+    catch (err) { setMsg(err.details?.length ? `${err.message} ${err.details.slice(1).join('. ')}` : err.message); }
+  };
+  const saveDocs = async (e) => {
+    e.preventDefault(); setMsg('');
+    try { await api.patch(`/admin/drivers/${editing}/documents`, docs); setEditing(null); reload(); }
+    catch (err) { setMsg(err.message); }
+  };
+  const expired = (d) => d && d < new Date().toISOString().slice(0, 10);
+
   return (
     <div className="space-y-4">
-      <form onSubmit={submit} className={`${card} p-4 grid grid-cols-2 md:grid-cols-6 gap-2 items-end`}>
-        <input required placeholder="Name" aria-label="Driver name" value={form.name} onChange={set('name')} className={input} />
-        <input required placeholder="Mobile (10 digits)" aria-label="Driver mobile" inputMode="numeric" value={form.phone} onChange={set('phone')} className={input} />
-        <select aria-label="City" value={form.cityId} onChange={set('cityId')} className={input}>{CITIES.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
-        <select aria-label="Vehicle" value={form.vehicleId} onChange={set('vehicleId')} className={input}>{(vehicles.data?.vehicles || []).map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}</select>
-        <input required placeholder="Plate e.g. MH02AB1234" aria-label="Vehicle number" value={form.vehicleNo} onChange={set('vehicleNo')} className={input} />
-        <button className={`${btn} bg-indigo-600 border-indigo-500 text-white py-2.5`}>Add driver</button>
-        {(msg || error) && <p role="alert" className="col-span-full text-xs text-rose-400">{msg || error}</p>}
+      <form onSubmit={submit} className={`${card} p-4 space-y-2`}>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+          <input required placeholder="Name" aria-label="Driver name" value={form.name} onChange={set('name')} className={input} />
+          <input required placeholder="Mobile (10 digits)" aria-label="Driver mobile" inputMode="numeric" value={form.phone} onChange={set('phone')} className={input} />
+          <select aria-label="City" value={form.cityId} onChange={set('cityId')} className={input}>{CITIES.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+          <select aria-label="Vehicle" value={form.vehicleId} onChange={set('vehicleId')} className={input}>{(vehicles.data?.vehicles || []).map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}</select>
+          <input required placeholder="Plate e.g. MH02AB1234" aria-label="Vehicle number" value={form.vehicleNo} onChange={set('vehicleNo')} className={input} />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 items-end">
+          <input placeholder="Licence number" aria-label="Licence number" value={form.licenseNo} onChange={set('licenseNo')} className={input} />
+          <label className="text-[10px] text-slate-400">Licence expiry<input type="date" value={form.licenseExpiry} onChange={set('licenseExpiry')} className={`${input} w-full mt-0.5`} /></label>
+          <label className="text-[10px] text-slate-400">RC expiry<input type="date" value={form.rcExpiry} onChange={set('rcExpiry')} className={`${input} w-full mt-0.5`} /></label>
+          <label className="text-[10px] text-slate-400">Insurance expiry<input type="date" value={form.insuranceExpiry} onChange={set('insuranceExpiry')} className={`${input} w-full mt-0.5`} /></label>
+          <button className={`${btn} bg-indigo-600 border-indigo-500 text-white py-2.5`}>Add driver (pending)</button>
+        </div>
+        <p className="text-[11px] text-slate-500">New drivers start as pending. Check the original documents, then approve. A driver cannot go online until approved, and is suspended automatically when a document expires.</p>
+        {(msg || error) && <p role="alert" className="text-xs text-rose-400">{msg || error}</p>}
       </form>
       <div className={`${card} overflow-x-auto`}>
         <table className="w-full text-xs text-left">
-          <thead className="text-[10px] uppercase tracking-wider text-slate-400 border-b border-slate-700"><tr>{['Driver', 'City / vehicle', 'Status', 'Online', 'Active', 'Last location', ''].map((h) => <th key={h} className="px-3 py-2.5 font-bold">{h}</th>)}</tr></thead>
+          <thead className="text-[10px] uppercase tracking-wider text-slate-400 border-b border-slate-700"><tr>{['Driver', 'City / vehicle', 'Documents', 'Status', 'Rating', 'Online', ''].map((h) => <th key={h} className="px-3 py-2.5 font-bold">{h}</th>)}</tr></thead>
           <tbody className="divide-y divide-slate-700/60">
             {(data?.drivers || []).map((d) => (
-              <tr key={d.id}>
-                <td className="px-3 py-2.5 font-bold">{d.name}<div className="text-[10px] text-slate-500 font-mono">+91 {d.phone}</div></td>
-                <td className="px-3 py-2.5">{d.city_id} · {d.vehicle_id}<div className="text-[10px] text-slate-500 font-mono">{d.vehicle_no}</div></td>
-                <td className="px-3 py-2.5">{d.status}</td>
-                <td className="px-3 py-2.5">{d.online ? <span className="text-emerald-400 font-bold">Online</span> : <span className="text-slate-500">Offline</span>}</td>
-                <td className="px-3 py-2.5">{d.active_orders}</td>
-                <td className="px-3 py-2.5 text-slate-400">{d.location_at ? new Date(d.location_at).toLocaleTimeString('en-IN') : '—'}</td>
-                <td className="px-3 py-2.5"><button className={`${btn} ${d.status === 'approved' ? 'border-rose-700 text-rose-300' : 'border-emerald-700 text-emerald-300'}`} onClick={async () => { await api.patch(`/admin/drivers/${d.id}`, { status: d.status === 'approved' ? 'suspended' : 'approved' }); reload(); }}>{d.status === 'approved' ? 'Suspend' : 'Reinstate'}</button></td>
-              </tr>
+              <React.Fragment key={d.id}>
+                <tr className="align-top">
+                  <td className="px-3 py-2.5 font-bold">{d.name}<div className="text-[10px] text-slate-500 font-mono">+91 {d.phone}</div></td>
+                  <td className="px-3 py-2.5">{d.city_id} · {d.vehicle_id}<div className="text-[10px] text-slate-500 font-mono">{d.vehicle_no}</div></td>
+                  <td className="px-3 py-2.5 text-[11px]">
+                    <div className="font-mono text-slate-300">{d.license_no || <span className="text-rose-400">no licence no.</span>}</div>
+                    {[['Licence', d.license_expiry], ['RC', d.rc_expiry], ['Insurance', d.insurance_expiry]].map(([k, v]) => (
+                      <div key={k} className={!v || expired(v) ? 'text-rose-400' : 'text-slate-400'}>{k}: {v || 'missing'}{expired(v) ? ' (expired)' : ''}</div>
+                    ))}
+                  </td>
+                  <td className="px-3 py-2.5">{d.status}{d.verified_at && d.status === 'approved' ? <div className="text-[10px] text-slate-500">verified {new Date(d.verified_at).toLocaleDateString('en-IN')}</div> : null}</td>
+                  <td className="px-3 py-2.5">{d.rating_count ? `★ ${Number(d.rating).toFixed(1)} (${d.rating_count})` : '—'}</td>
+                  <td className="px-3 py-2.5">{d.online ? <span className="text-emerald-400 font-bold">Online</span> : <span className="text-slate-500">Offline</span>}{d.active_orders ? <div className="text-[10px] text-slate-400">{d.active_orders} active</div> : null}</td>
+                  <td className="px-3 py-2.5 space-y-1.5">
+                    <button className={`${btn} ${d.status === 'approved' ? 'border-rose-700 text-rose-300' : 'border-emerald-700 text-emerald-300'}`} onClick={() => setStatus(d, d.status === 'approved' ? 'suspended' : 'approved')}>{d.status === 'approved' ? 'Suspend' : d.status === 'pending' ? 'Approve' : 'Reinstate'}</button>
+                    <button className={`${btn} border-slate-600 text-slate-300 block`} onClick={() => { setEditing(editing === d.id ? null : d.id); setDocs({ licenseNo: d.license_no || '', licenseExpiry: d.license_expiry || '', rcExpiry: d.rc_expiry || '', insuranceExpiry: d.insurance_expiry || '' }); }}>Documents</button>
+                  </td>
+                </tr>
+                {editing === d.id && (
+                  <tr><td colSpan={7} className="px-3 py-3 bg-slate-900/60">
+                    <form onSubmit={saveDocs} className="grid grid-cols-2 md:grid-cols-5 gap-2 items-end">
+                      <input required placeholder="Licence number" aria-label="Licence number" value={docs.licenseNo} onChange={(e) => setDocs({ ...docs, licenseNo: e.target.value })} className={input} />
+                      <label className="text-[10px] text-slate-400">Licence expiry<input required type="date" value={docs.licenseExpiry} onChange={(e) => setDocs({ ...docs, licenseExpiry: e.target.value })} className={`${input} w-full mt-0.5`} /></label>
+                      <label className="text-[10px] text-slate-400">RC expiry<input required type="date" value={docs.rcExpiry} onChange={(e) => setDocs({ ...docs, rcExpiry: e.target.value })} className={`${input} w-full mt-0.5`} /></label>
+                      <label className="text-[10px] text-slate-400">Insurance expiry<input required type="date" value={docs.insuranceExpiry} onChange={(e) => setDocs({ ...docs, insuranceExpiry: e.target.value })} className={`${input} w-full mt-0.5`} /></label>
+                      <button className={`${btn} bg-indigo-600 border-indigo-500 text-white py-2.5`}>Save documents</button>
+                    </form>
+                  </td></tr>
+                )}
+              </React.Fragment>
             ))}
             {data && data.drivers.length === 0 && <tr><td colSpan={7} className="px-3 py-10 text-center text-slate-500">No drivers yet. Add one above; they log in with their mobile number.</td></tr>}
           </tbody>
@@ -225,11 +277,12 @@ function AuditTab() {
 const TABS = [['orders', 'Orders'], ['drivers', 'Drivers'], ['pricing', 'Pricing & coupons'], ['leads', 'Enterprise leads'], ['audit', 'Audit log']];
 
 export default function AdminDashboardPage() {
-  const { user, authReady, requireLogin, logout } = useApp();
+  usePageTitle('Admin console');
+  const { user, authReady, requireLogin, logout, setIsLoginModalOpen } = useApp();
   const [tab, setTab] = useState('orders');
   const [tick, setTick] = useState(0);
   const stats = useAdmin('/admin/stats', [tick]);
-  const isAdmin = user.role === 'admin';
+  const isAdmin = user.role === 'admin' && !user.mfa;
 
   if (!authReady) return <div className="min-h-[60vh] flex items-center justify-center text-sm text-gray-400">Loading…</div>;
   if (!isAdmin) {
@@ -237,8 +290,8 @@ export default function AdminDashboardPage() {
       <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center">
         <ShieldCheck className="w-14 h-14 text-gray-300 mb-3" />
         <h2 className="text-xl font-bold text-gray-800">Admin console</h2>
-        <p className="text-xs text-gray-500 mt-1">{user.isLoggedIn ? 'This account does not have admin access.' : 'Log in with an administrator account.'}</p>
-        {user.isLoggedIn ? <button onClick={logout} className="mt-4 px-6 py-2.5 border border-gray-300 text-xs font-bold rounded-xl">Log out</button> : <button onClick={() => requireLogin()} className="mt-4 px-6 py-2.5 bg-porter-blue text-white text-xs font-bold rounded-xl">Admin login</button>}
+        <p className="text-xs text-gray-500 mt-1">{user.mfa ? 'Two-factor verification is required to continue.' : user.isLoggedIn ? 'This account does not have admin access.' : 'Log in with an administrator account.'}</p>
+        {user.mfa ? <button onClick={() => setIsLoginModalOpen(true)} className="mt-4 px-6 py-2.5 bg-porter-blue text-white text-xs font-bold rounded-xl">Verify now</button> : user.isLoggedIn ? <button onClick={logout} className="mt-4 px-6 py-2.5 border border-gray-300 text-xs font-bold rounded-xl">Log out</button> : <button onClick={() => requireLogin()} className="mt-4 px-6 py-2.5 bg-porter-blue text-white text-xs font-bold rounded-xl">Admin login</button>}
       </div>
     );
   }

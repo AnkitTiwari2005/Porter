@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
+import { usePageTitle } from '../lib/usePageTitle';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { computeParcel, PARCEL_MAX_KG } from '../utils/pricing';
@@ -12,6 +13,7 @@ import {
 const pinOk = (p) => /^[1-9][0-9]{5}$/.test(p);
 
 export default function AllIndiaParcelPage() {
+  usePageTitle('All-India parcel');
   const navigate = useNavigate();
   const { selectedCity, user, gstRate, paymentsEnabled, requireLogin, bookOrder } = useApp();
 

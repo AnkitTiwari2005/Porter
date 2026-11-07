@@ -2,7 +2,8 @@ import express from 'express';
 import { z } from 'zod';
 import { wrap, validate } from '../lib/http.js';
 import { requireRole } from '../middleware.js';
-import { phone } from '../lib/schemas.js';
+import { phone, driverDocsSchema } from '../lib/schemas.js';
+import { DOC_COLUMNS, docIssues } from '../services/drivers.js';
 import { audit } from '../services/audit.js';
 import { badRequest, notFound, conflict } from '../lib/errors.js';
 import { cityById } from '../../../shared/cities.js';
@@ -114,11 +115,11 @@ export function adminRoutes({ db, orders, auth, clock }) {
   // ------- drivers
   r.get('/admin/drivers', wrap(async (_req, res) => {
     res.json({ drivers: (await db.query(
-      `SELECT d.user_id AS id, u.name, u.phone, d.city_id, d.vehicle_id, d.vehicle_no, d.status, d.online, d.rating, d.lat, d.lng, d.location_at,
+      `SELECT d.user_id AS id, u.name, u.phone, d.city_id, d.vehicle_id, d.vehicle_no, d.status, d.online, d.rating, d.rating_count, d.lat, d.lng, d.location_at, d.verified_at, ${DOC_COLUMNS},
               (SELECT count(*)::int FROM orders o WHERE o.driver_id = d.user_id AND o.status IN ('assigned','in_transit')) AS active_orders
        FROM drivers d JOIN users u ON u.id = d.user_id ORDER BY d.created_at DESC`)).rows });
   }));
-  r.post('/admin/drivers', validate(z.object({ phone, name: z.string().trim().min(2).max(80), cityId: z.string(), vehicleId: z.string(), vehicleNo: z.string().trim().toUpperCase().min(6).max(15) })), wrap(async (req, res) => {
+  r.post('/admin/drivers', validate(z.object({ phone, name: z.string().trim().min(2).max(80), cityId: z.string(), vehicleId: z.string(), vehicleNo: z.string().trim().toUpperCase().min(6).max(15), documents: driverDocsSchema.optional() })), wrap(async (req, res) => {
     const b = req.body;
     if (!cityById(b.cityId)) throw badRequest('unknown_city', 'Unknown city.');
     const veh = (await db.query('SELECT 1 FROM vehicles WHERE id = $1', [b.vehicleId])).rowCount;
@@ -127,17 +128,35 @@ export function adminRoutes({ db, orders, auth, clock }) {
       const existing = (await t.query('SELECT id, role FROM users WHERE phone = $1', [b.phone])).rows[0];
       if (existing && existing.role !== 'driver') throw conflict('phone_in_use', 'That phone number belongs to a non-driver account.');
       const u = existing || (await t.query("INSERT INTO users (phone, name, role) VALUES ($1,$2,'driver') RETURNING id", [b.phone, b.name])).rows[0];
-      await t.query('INSERT INTO drivers (user_id, city_id, vehicle_id, vehicle_no) VALUES ($1,$2,$3,$4)', [u.id, b.cityId, b.vehicleId, b.vehicleNo]);
+      const dc = b.documents || {};
+      // New drivers start as 'pending' and cannot go online until an admin verifies their documents.
+      await t.query("INSERT INTO drivers (user_id, city_id, vehicle_id, vehicle_no, status, license_no, license_expiry, rc_expiry, insurance_expiry) VALUES ($1,$2,$3,$4,'pending',$5,$6,$7,$8)", [u.id, b.cityId, b.vehicleId, b.vehicleNo, dc.licenseNo || null, dc.licenseExpiry || null, dc.rcExpiry || null, dc.insuranceExpiry || null]);
       await audit(t, { actorId: req.user.id, action: 'driver.create', entity: 'driver', entityId: u.id, after: b });
       return u;
     }).catch((e) => { if (e.code === '23505') throw conflict('driver_exists', 'This driver already exists.'); throw e; });
     res.status(201).json({ id: out.id });
   }));
   r.patch('/admin/drivers/:id', validate(z.object({ status: z.enum(['approved', 'suspended']) })), wrap(async (req, res) => {
-    const d = (await db.query('UPDATE drivers SET status = $2, online = CASE WHEN $2 = \'approved\' THEN online ELSE false END WHERE user_id = $1 RETURNING user_id', [req.params.id, req.body.status])).rows[0];
-    if (!d) throw notFound('Driver not found.');
+    const cur = (await db.query(`SELECT d.user_id, ${DOC_COLUMNS} FROM drivers d WHERE d.user_id = $1`, [req.params.id])).rows[0];
+    if (!cur) throw notFound('Driver not found.');
+    if (req.body.status === 'approved') {
+      const issues = docIssues(cur, clock.now().toISOString().slice(0, 10));
+      if (issues.length) throw conflict('documents_invalid', `Cannot approve: ${issues[0]}.`, issues);
+    }
+    await db.query(
+      `UPDATE drivers SET status = $2, online = CASE WHEN $2 = 'approved' THEN online ELSE false END,
+         verified_at = CASE WHEN $2 = 'approved' THEN $3 ELSE verified_at END, verified_by = CASE WHEN $2 = 'approved' THEN $4::uuid ELSE verified_by END
+       WHERE user_id = $1`, [req.params.id, req.body.status, clock.now(), req.user.id]);
     if (req.body.status === 'suspended') await auth.revokeAllForUser(req.params.id);
     await audit(db, { actorId: req.user.id, action: `driver.${req.body.status}`, entity: 'driver', entityId: req.params.id });
+    res.json({ ok: true });
+  }));
+
+  r.patch('/admin/drivers/:id/documents', validate(driverDocsSchema), wrap(async (req, res) => {
+    const b = req.body;
+    const u = await db.query('UPDATE drivers SET license_no = $2, license_expiry = $3, rc_expiry = $4, insurance_expiry = $5 WHERE user_id = $1 RETURNING user_id', [req.params.id, b.licenseNo, b.licenseExpiry, b.rcExpiry, b.insuranceExpiry]);
+    if (!u.rowCount) throw notFound('Driver not found.');
+    await audit(db, { actorId: req.user.id, action: 'driver.documents', entity: 'driver', entityId: req.params.id, after: b });
     res.json({ ok: true });
   }));
 

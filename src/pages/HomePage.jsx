@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { BRANDING } from '../config/branding';
-import { FAQS } from '../data/mockData';
+import { FAQS, CITIES } from '../data/mockData';
+import { usePageTitle } from '../lib/usePageTitle';
 import { getCityLocations } from '../data/geoData';
 import LocationSearchInput from '../components/LocationSearchInput';
 import { 
@@ -11,6 +12,7 @@ import {
 } from 'lucide-react';
 
 export default function HomePage() {
+  usePageTitle('Book trucks, bikes and movers');
   const { selectedCity, setIsCityModalOpen, fleetTariffs } = useApp();
   const navigate = useNavigate();
 
@@ -45,12 +47,6 @@ export default function HomePage() {
         category: activeTab === 'two-wheeler' ? 'bike' : 'truck'
       }
     });
-  };
-
-  const handleSelectQuickLocation = (loc, type) => {
-    const fullLoc = `${loc.name}, ${selectedCity.name}`;
-    if (type === 'pickup') setPickup(fullLoc);
-    else setDrop(fullLoc);
   };
 
   return (
@@ -88,7 +84,7 @@ export default function HomePage() {
           <div className="lg:col-span-6 space-y-5 sm:space-y-7 min-w-0">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full bg-indigo-950/70 backdrop-blur-md border border-indigo-400/30 text-xs font-semibold text-indigo-200 shadow-lg shadow-indigo-950/50">
               <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-400 animate-pulse ring-4 ring-emerald-400/20"></span>
-              <span className="tracking-wide text-[11px] sm:text-xs">Available across {selectedCity?.name || 'Mumbai'} & 15+ Indian Cities</span>
+              <span className="tracking-wide text-[11px] sm:text-xs">Available in {CITIES.length} Indian cities</span>
             </div>
 
             <h1 className="font-display text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.1] text-white">
@@ -99,22 +95,22 @@ export default function HomePage() {
             </h1>
 
             <p className="text-sm sm:text-lg text-slate-300 max-w-xl font-normal leading-relaxed">
-              India's next-generation on-demand logistics network. Instant mini trucks, quick city 2-wheelers, and verified home shifting across 15+ cities with upfront guaranteed fares.
+              India's next-generation on-demand logistics network. Instant mini trucks, quick city 2-wheelers, and home shifting across {CITIES.length} cities with upfront guaranteed fares.
             </p>
 
             {/* Portex Performance Pillars with Elevated Glass Style */}
             <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-4 sm:pt-6 border-t border-white/10 max-w-lg w-full">
               <div className="bg-white/5 backdrop-blur-md p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl border border-white/10 text-center sm:text-left">
-                <span className="font-display text-lg sm:text-2xl lg:text-3xl font-black text-white block">12 Mins</span>
-                <span className="text-[10px] sm:text-[11px] font-semibold text-indigo-200 uppercase tracking-wider mt-0.5 block leading-tight">Avg. Pickup</span>
+                <span className="font-display text-lg sm:text-2xl lg:text-3xl font-black text-white block">Upfront</span>
+                <span className="text-[10px] sm:text-[11px] font-semibold text-indigo-200 uppercase tracking-wider mt-0.5 block leading-tight">Fare before you book</span>
               </div>
               <div className="bg-white/5 backdrop-blur-md p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl border border-white/10 text-center sm:text-left">
-                <span className="font-display text-lg sm:text-2xl lg:text-3xl font-black text-white block">2.4 Cr+</span>
-                <span className="text-[10px] sm:text-[11px] font-semibold text-indigo-200 uppercase tracking-wider mt-0.5 block leading-tight">Km Delivered</span>
+                <span className="font-display text-lg sm:text-2xl lg:text-3xl font-black text-white block">OTP</span>
+                <span className="text-[10px] sm:text-[11px] font-semibold text-indigo-200 uppercase tracking-wider mt-0.5 block leading-tight">Verified delivery</span>
               </div>
               <div className="bg-white/5 backdrop-blur-md p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl border border-white/10 text-center sm:text-left">
-                <span className="font-display text-lg sm:text-2xl lg:text-3xl font-black text-emerald-400 block">99.6%</span>
-                <span className="text-[10px] sm:text-[11px] font-semibold text-indigo-200 uppercase tracking-wider mt-0.5 block leading-tight">Safe Transit</span>
+                <span className="font-display text-lg sm:text-2xl lg:text-3xl font-black text-emerald-400 block">Live</span>
+                <span className="text-[10px] sm:text-[11px] font-semibold text-indigo-200 uppercase tracking-wider mt-0.5 block leading-tight">Driver tracking</span>
               </div>
             </div>
           </div>
@@ -250,7 +246,7 @@ export default function HomePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Card 1: City Mini Trucks */}
           <Link
-            to="/trucks-mumbai"
+            to="/trucks"
             className="group bg-white rounded-3xl border border-gray-200/80 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden"
           >
             <div>
@@ -289,7 +285,7 @@ export default function HomePage() {
 
           {/* Card 2: 2-Wheeler Instant Courier */}
           <Link
-            to="/two-wheelers-mumbai"
+            to="/two-wheelers"
             className="group bg-white rounded-3xl border border-gray-200/80 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden"
           >
             <div>
@@ -353,7 +349,7 @@ export default function HomePage() {
                   House shifting made effortless. Multi-layer packing, carpenter dismantling, safe transit & room setup.
                 </p>
                 <div className="text-xs font-bold text-purple-700 bg-purple-50 px-2.5 py-1 rounded-lg w-fit border border-purple-100">
-                  Verified moving experts
+                  Packing & moving crew
                 </div>
               </div>
             </div>
@@ -380,7 +376,7 @@ export default function HomePage() {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent"></div>
                 <span className="absolute top-3 left-3 text-[11px] font-bold bg-white/90 backdrop-blur-md text-blue-700 px-2.5 py-1 rounded-full shadow-sm">
-                  19,000+ Pincodes
+                  Pan-India courier
                 </span>
               </div>
               <div className="p-6">
@@ -533,7 +529,7 @@ export default function HomePage() {
               Why Modern Indian Logistics Runs on {BRANDING.name}
             </h2>
             <p className="text-sm text-gray-600 mt-3 leading-relaxed">
-              Say goodbye to roadside haggling and unreliable fleet arrival times. Benefit from automated driver allocation, real-time telemetry, and 100% transparent itemized invoicing.
+              Say goodbye to roadside haggling and unreliable fleet arrival times. Benefit from automated driver allocation, live driver tracking, and itemized invoicing.
             </p>
 
             <div className="space-y-4 mt-6">
@@ -542,8 +538,8 @@ export default function HomePage() {
                   <CheckCircle2 className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-gray-800">100% Algorithmic Rate Transparency</h4>
-                  <p className="text-xs text-gray-500 mt-0.5">Guaranteed upfront rate cards covering base fare, fuel, and helpers with zero surge spikes.</p>
+                  <h4 className="text-sm font-bold text-gray-800">Transparent rate cards</h4>
+                  <p className="text-xs text-gray-500 mt-0.5">Upfront rate cards itemise base fare, distance and helpers. No surge pricing is applied.</p>
                 </div>
               </div>
 
@@ -587,7 +583,7 @@ export default function HomePage() {
 
               <div className="flex items-center gap-6 pt-2">
                 <div className="bg-white p-2.5 rounded-2xl shadow-lg shrink-0">
-                  <img src="/images/portex-app-qr.png" alt="Scan QR" className="w-24 h-24 object-contain rounded-lg" />
+                  <img src="/images/qr_code_6ac327e0fa.png" alt="Scan QR" className="w-24 h-24 object-contain" />
                   <span className="text-[10px] text-gray-800 font-bold block text-center mt-1">Scan to Install</span>
                 </div>
 

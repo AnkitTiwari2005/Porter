@@ -20,6 +20,7 @@ import { publicRoutes } from './routes/public.js';
 import { orderRoutes, webhookRoute } from './routes/orders.js';
 import { driverRoutes } from './routes/driver.js';
 import { adminRoutes } from './routes/admin.js';
+import { opsRoutes } from './routes/ops.js';
 
 // Dependencies can be injected (tests pass fakes for SMS, payments, geo and the clock).
 export function createApp({ config, db, deps = {} }) {
@@ -28,9 +29,9 @@ export function createApp({ config, db, deps = {} }) {
   const sms = deps.sms || createSms(config, { log });
   const payments = deps.payments || createPayments(config);
   const geo = deps.geo || createGeo(config, { log });
-  const hub = createHub();
+  const hub = createHub({ db });
 
-  const auth = createAuth({ db, config, sms, clock });
+  const auth = createAuth({ db, config, sms, clock, log });
   const quotes = createQuotes({ db, config, geo, clock });
   const notify = createNotify({ db, sms, config, log });
   const invoices = createInvoices({ db, config, clock });
@@ -45,7 +46,7 @@ export function createApp({ config, db, deps = {} }) {
   app.use(pinoHttp({ logger: log, genReqId: (req) => req.id, autoLogging: { ignore: (req) => req.url === '/healthz' } }));
   app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: 'same-site' } }));
   app.use(cors({ origin: config.corsOrigins.length ? config.corsOrigins : false, credentials: true }));
-  app.use(limiter(config, { windowMs: 60_000, max: 600 }));
+  app.use(limiter(config, { name: 'global', windowMs: 60_000, max: 600 }, db));
 
   // Razorpay needs the raw bytes for signature checks, so mount it before the JSON parser.
   app.use('/api/payments/webhook', express.raw({ type: () => true, limit: '512kb' }), webhookRoute({ orders }));
@@ -56,6 +57,7 @@ export function createApp({ config, db, deps = {} }) {
     try { await db.query('SELECT 1'); res.json({ ok: true }); } catch { res.status(503).json({ ok: false }); }
   });
 
+  app.use('/internal', opsRoutes({ config, db }));
   app.use('/api', originGuard(config), attachUser(auth));
   app.use('/api', publicRoutes({ config, db, auth, quotes, geo, hub }));
   app.use('/api', orderRoutes({ config, db, orders, invoices, hub }));
@@ -71,5 +73,6 @@ export function createApp({ config, db, deps = {} }) {
     return res.status(500).json({ error: { code: 'internal', message: 'Something went wrong. Please try again.', requestId: req.id } });
   });
 
-  return { app, hub, dispatcher, services: { auth, quotes, orders, invoices, notify }, sms, payments, geo, log };
+  const close = () => { dispatcher.stop(); hub.stop(); };
+  return { app, hub, dispatcher, close, services: { auth, quotes, orders, invoices, notify }, sms, payments, geo, log };
 }

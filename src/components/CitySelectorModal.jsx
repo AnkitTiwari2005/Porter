@@ -6,7 +6,6 @@ import { Search, MapPin, X, Check } from 'lucide-react';
 export default function CitySelectorModal() {
   const { isCityModalOpen, setIsCityModalOpen, selectedCity, setSelectedCity } = useApp();
   const [search, setSearch] = useState('');
-
   React.useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') setIsCityModalOpen(false); };
     window.addEventListener('keydown', onKey);
@@ -25,71 +24,65 @@ export default function CitySelectorModal() {
   const handleSelectCity = (city) => {
     setSelectedCity(city);
     setIsCityModalOpen(false);
-    setSearch('');
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-      <div 
-        className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-gray-100 animate-scaleUp"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div role="dialog" aria-modal="true" onClick={(e) => e.target === e.currentTarget && setIsCityModalOpen(false)} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+      <div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden border border-gray-100 animate-scaleUp">
         {/* Header */}
-        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-black text-gray-900 tracking-tight">Select Operational City</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Choose your city to view exact live fleet availability & tariffs</p>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/70">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-porter-blue">
+              <MapPin className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">Choose Your City</h3>
+              <p className="text-xs text-gray-500">Service availability and local rates depend on selected city</p>
+            </div>
           </div>
           <button
             onClick={() => setIsCityModalOpen(false)}
-            className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center transition"
+            className="p-1.5 rounded-full hover:bg-gray-200 text-gray-400 hover:text-gray-700 transition"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Search */}
-        <div className="p-6 pb-2">
+        {/* Search input */}
+        <div className="p-6 border-b border-gray-100">
           <div className="relative">
-            <Search className="absolute left-4 top-3.5 w-4 h-4 text-gray-400" />
+            <Search className="w-5 h-5 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search Mumbai, Bangalore, Delhi, Hyderabad..."
+              placeholder="Search by city or state name..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-porter-blue focus:bg-white transition"
+              className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-porter-blue focus:bg-white transition"
               autoFocus
             />
           </div>
         </div>
 
-        {/* City Lists */}
-        <div className="p-6 max-h-[380px] overflow-y-auto space-y-6">
-          {/* Popular Cities Quick Grid */}
+        {/* Content */}
+        <div className="p-6 max-h-[380px] overflow-y-auto">
           {!search && (
-            <div>
-              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">
-                Major Logistics Hubs
-              </p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <div className="mb-5">
+              <span className="text-xs font-semibold tracking-wider text-gray-400 uppercase">Popular Cities</span>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-2.5">
                 {popularCities.map((city) => {
                   const isSelected = selectedCity?.id === city.id;
                   return (
                     <button
                       key={city.id}
                       onClick={() => handleSelectCity(city)}
-                      className={`p-3 rounded-2xl border text-center transition flex flex-col items-center gap-1.5 ${
-                        isSelected 
-                          ? 'border-porter-blue bg-blue-50/60 text-porter-blue font-bold shadow-sm' 
-                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-800 font-semibold'
+                      className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-sm font-semibold transition ${
+                        isSelected
+                          ? 'border-porter-blue bg-blue-50/70 text-porter-blue'
+                          : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/30 text-gray-700'
                       }`}
                     >
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        isSelected ? 'bg-porter-blue text-white' : 'bg-gray-100 text-gray-600'
-                      }`}>
-                        <MapPin className="w-4 h-4" />
-                      </div>
-                      <span className="text-xs truncate w-full">{city.name}</span>
+                      <span className="truncate">{city.name}</span>
+                      {isSelected && <Check className="w-4 h-4 text-porter-blue shrink-0 ml-1" />}
                     </button>
                   );
                 })}
@@ -97,38 +90,37 @@ export default function CitySelectorModal() {
             </div>
           )}
 
-          {/* All Cities List */}
           <div>
-            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">
-              {search ? 'Search Results' : 'All Serviced Cities'}
-            </p>
-            <div className="space-y-1">
+            <span className="text-xs font-semibold tracking-wider text-gray-400 uppercase">
+              {search ? 'Matching Cities' : 'All Serviced Cities'}
+            </span>
+            <div className="divide-y divide-gray-100 mt-2">
               {filteredCities.map((city) => {
                 const isSelected = selectedCity?.id === city.id;
                 return (
                   <button
                     key={city.id}
                     onClick={() => handleSelectCity(city)}
-                    className={`w-full px-4 py-2.5 rounded-xl flex items-center justify-between transition text-left ${
-                      isSelected 
-                        ? 'bg-blue-50 text-porter-blue font-bold' 
-                        : 'hover:bg-gray-50 text-gray-700 font-semibold'
-                    }`}
+                    className="w-full flex items-center justify-between py-3 px-2 rounded-lg hover:bg-gray-50 text-left transition"
                   >
-                    <div className="flex items-center gap-3">
-                      <MapPin className={`w-4 h-4 ${isSelected ? 'text-porter-blue' : 'text-gray-400'}`} />
-                      <div>
-                        <span className="text-xs block text-gray-900">{city.name}</span>
-                        <span className="text-[10px] text-gray-400">{city.state}</span>
-                      </div>
+                    <div>
+                      <p className={`text-sm font-semibold ${isSelected ? 'text-porter-blue' : 'text-gray-800'}`}>
+                        {city.name}
+                      </p>
+                      <p className="text-xs text-gray-400">{city.state}</p>
                     </div>
-                    {isSelected && <Check className="w-4 h-4 text-porter-blue" />}
+                    {isSelected ? (
+                      <span className="text-xs bg-blue-100 text-porter-blue font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <Check className="w-3 h-3" /> Selected
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400">Select →</span>
+                    )}
                   </button>
                 );
               })}
-
               {filteredCities.length === 0 && (
-                <div className="py-8 text-center text-xs text-gray-400">
+                <div className="py-8 text-center text-gray-400 text-sm">
                   No cities found matching "{search}".
                 </div>
               )}

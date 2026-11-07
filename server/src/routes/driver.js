@@ -3,13 +3,14 @@ import { z } from 'zod';
 import { wrap, validate } from '../lib/http.js';
 import { requireRole } from '../middleware.js';
 import { conflict, forbidden } from '../lib/errors.js';
+import { DOC_COLUMNS, docIssues } from '../services/drivers.js';
 
 export function driverRoutes({ config, db, orders, dispatcher, hub, clock }) {
   const r = express.Router();
   r.use('/driver', requireRole('driver'));
 
   const loadDriver = async (userId) => {
-    const d = (await db.query('SELECT * FROM drivers WHERE user_id = $1', [userId])).rows[0];
+    const d = (await db.query(`SELECT d.*, ${DOC_COLUMNS} FROM drivers d WHERE d.user_id = $1`, [userId])).rows[0];
     if (!d) throw forbidden('Driver profile not found.');
     return d;
   };
@@ -25,7 +26,9 @@ export function driverRoutes({ config, db, orders, dispatcher, hub, clock }) {
     const earn = (await db.query('SELECT COALESCE(sum(amount),0)::int AS total, count(*)::int AS trips, COALESCE(sum(amount) FILTER (WHERE created_at >= $2),0)::int AS today FROM driver_earnings WHERE driver_id = $1',
       [req.user.id, new Date(new Date(clock.now()).setHours(0, 0, 0, 0))])).rows[0];
     res.json({
-      driver: { name: req.user.name, phone: req.user.phone, cityId: d.city_id, vehicleId: d.vehicle_id, vehicleNo: d.vehicle_no, status: d.status, online: d.online, rating: d.rating, lat: d.lat, lng: d.lng },
+      driver: { name: req.user.name, phone: req.user.phone, cityId: d.city_id, vehicleId: d.vehicle_id, vehicleNo: d.vehicle_no, status: d.status, online: d.online, rating: d.rating, ratingCount: d.rating_count, lat: d.lat, lng: d.lng,
+        documents: { licenseNo: d.license_no, licenseExpiry: d.license_expiry, rcExpiry: d.rc_expiry, insuranceExpiry: d.insurance_expiry },
+        documentIssues: docIssues(d, clock.now().toISOString().slice(0, 10)) },
       activeOrder: active ? await orders.getForUser(req.user, active.id) : null,
       offers: offers.map((o) => ({ id: o.id, orderId: o.order_id, pickup: o.pickup_address, drop: o.drop_address, distanceKm: o.distance_km, vehicleName: o.vehicle_name,
         earn: Math.round((o.total * config.DRIVER_PAYOUT_PERCENT) / 100), collectCash: o.payment_method === 'cod' ? o.total : 0, expiresAt: o.expires_at })),

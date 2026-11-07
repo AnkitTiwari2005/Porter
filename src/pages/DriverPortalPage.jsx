@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { usePageTitle } from '../lib/usePageTitle';
 import { useApp } from '../context/AppContext';
 import { api } from '../lib/api';
 import InteractiveMap from '../components/InteractiveMap';
@@ -39,6 +40,7 @@ function OfferCard({ offer, onAccept, onReject, busy }) {
 }
 
 export default function DriverPortalPage() {
+  usePageTitle('Driver portal');
   const { user, authReady, requireLogin, logout } = useApp();
   const [me, setMe] = useState(null);
   const [error, setError] = useState('');
@@ -123,7 +125,18 @@ export default function DriverPortalPage() {
           </button>
         </div>
 
-        {!approved && <div role="alert" className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700">Your account is {driver.status}. Contact support.</div>}
+        {!approved && (
+          <div role="alert" className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 space-y-1">
+            <p className="font-bold">{driver.status === 'pending' ? 'Your account is waiting for verification.' : `Your account is ${driver.status}.`}</p>
+            {(driver.documentIssues || []).map((i) => <p key={i}>• {i}</p>)}
+            <p>Contact support once your documents are up to date.</p>
+          </div>
+        )}
+        {approved && (() => {
+          const soon = [['Driving licence', driver.documents?.licenseExpiry], ['Vehicle registration', driver.documents?.rcExpiry], ['Insurance', driver.documents?.insuranceExpiry]]
+            .filter(([, d]) => d && new Date(d) - Date.now() < 30 * 86400000);
+          return soon.length ? <div role="status" className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">{soon.map(([k, d]) => <p key={k}>{k} expires on {d}. Renew it to keep receiving trips.</p>)}</div> : null;
+        })()}
         {error && <div role="alert" className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700">{error}</div>}
         {online && gps.error && <div role="alert" className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex gap-2"><AlertTriangle className="w-4 h-4 shrink-0" />{gps.error}</div>}
 

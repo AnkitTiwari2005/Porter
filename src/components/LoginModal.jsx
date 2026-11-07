@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { api } from '../lib/api';
 import { useApp } from '../context/AppContext';
 import { BRANDING } from '../config/branding';
+import { useFocusTrap } from '../lib/useFocusTrap';
 import { X, Smartphone, ShieldCheck, ArrowRight, CheckCircle2, Loader2 } from 'lucide-react';
 
 const LEN = 6;
 const RESEND_SECONDS = 30;
 
 export default function LoginModal() {
-  const { isLoginModalOpen, setIsLoginModalOpen, requestOtp, verifyOtp } = useApp();
+  const cardRef = useRef(null);
+  const { isLoginModalOpen, setIsLoginModalOpen, requestOtp, verifyOtp, user, refreshAccount, logout } = useApp();
   const [step, setStep] = useState('phone'); // 'phone' | 'otp'
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
@@ -17,6 +20,13 @@ export default function LoginModal() {
   const [devOtp, setDevOtp] = useState('');
   const [cooldown, setCooldown] = useState(0);
   const boxes = useRef([]);
+  // Admin second factor (authenticator app): 'setup' on first sign-in, 'verify' afterwards.
+  const [totp, setTotp] = useState({ code: '', secret: '', url: '' });
+  const mfa = user.mfa;
+  useEffect(() => {
+    if (!isLoginModalOpen || mfa !== 'setup' || totp.secret) return;
+    api.post('/auth/totp/setup').then((r) => setTotp((t) => ({ ...t, secret: r.secret, url: r.otpauthUrl }))).catch((e) => setError(e.message));
+  }, [isLoginModalOpen, mfa, totp.secret]);
 
   const reset = () => { setStep('phone'); setOtp(Array(LEN).fill('')); setError(''); setDevOtp(''); setCooldown(0); };
   const close = () => { setIsLoginModalOpen(false); reset(); };
@@ -34,6 +44,8 @@ export default function LoginModal() {
     const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
     return () => clearTimeout(t);
   }, [cooldown]);
+
+  useFocusTrap(isLoginModalOpen, cardRef);
 
   if (!isLoginModalOpen) return null;
 
@@ -56,13 +68,29 @@ export default function LoginModal() {
     if (code.length < LEN) { setError(`Enter the complete ${LEN}-digit code`); return; }
     setBusy(true); setError('');
     try {
-      const { resume } = await verifyOtp(phone, code, name.trim() || undefined);
+      const { user: who, resume } = await verifyOtp(phone, code, name.trim() || undefined);
+      if (who.mfa) { setOtp(Array(LEN).fill('')); return; } // continue to the authenticator step
       close();
       setPhone(''); setName('');
       if (typeof resume === 'function') resume();
     } catch (err) {
       setError(err.message);
       if (err.status === 429 || err.code === 'otp_expired') setOtp(Array(LEN).fill(''));
+    } finally { setBusy(false); }
+  };
+
+  const submitTotp = async (e) => {
+    e.preventDefault();
+    if (!/^[0-9]{6}$/.test(totp.code)) { setError('Enter the 6-digit code from your authenticator app'); return; }
+    setBusy(true); setError('');
+    try {
+      await api.post(mfa === 'setup' ? '/auth/totp/enable' : '/auth/totp/verify', { code: totp.code });
+      await refreshAccount();
+      setTotp({ code: '', secret: '', url: '' });
+      close();
+    } catch (err) {
+      setError(err.message);
+      if (err.status === 429) { await refreshAccount().catch(() => {}); }
     } finally { setBusy(false); }
   };
 
@@ -86,7 +114,7 @@ export default function LoginModal() {
 
   return (
     <div role="dialog" aria-modal="true" aria-labelledby="login-title" onClick={(e) => e.target === e.currentTarget && close()} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn">
-      <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-gray-100 animate-scaleUp">
+      <div ref={cardRef} tabIndex={-1} className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-gray-100 animate-scaleUp">
         <div className="relative bg-gradient-to-br from-porter-navy to-porter-blue text-white p-6 pb-8">
           <button onClick={close} aria-label="Close" className="absolute top-4 right-4 p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition">
             <X className="w-5 h-5" />
@@ -97,7 +125,28 @@ export default function LoginModal() {
         </div>
 
         <div className="p-6">
-          {step === 'phone' ? (
+          {mfa ? (
+            <form onSubmit={submitTotp} className="space-y-4">
+              <div className="text-center space-y-1">
+                <p className="text-sm font-bold text-gray-900">{mfa === 'setup' ? 'Set up two-factor sign-in' : 'Two-factor verification'}</p>
+                <p className="text-xs text-gray-500">{mfa === 'setup' ? 'Administrator accounts require an authenticator app (Google Authenticator, Authy, 1Password…).' : 'Open your authenticator app and enter the current 6-digit code.'}</p>
+              </div>
+              {mfa === 'setup' && (
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2 text-center">
+                  <p className="text-[11px] text-gray-500">Add this key to your app, then enter the code it shows:</p>
+                  <p className="font-mono text-sm font-bold tracking-wider break-all select-all">{totp.secret || 'Generating…'}</p>
+                  {totp.url && <a href={totp.url} className="text-[11px] text-porter-blue font-semibold underline">Open in authenticator app</a>}
+                </div>
+              )}
+              <input value={totp.code} onChange={(e) => setTotp({ ...totp, code: e.target.value.replace(/\D/g, '').slice(0, 6) })} inputMode="numeric" autoComplete="one-time-code" aria-label="Authenticator code" placeholder="000000" className="w-full px-4 py-3 text-center text-2xl font-mono tracking-[0.4em] bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-porter-blue" />
+              {error && <p role="alert" className="text-xs text-red-500 font-medium text-center">{error}</p>}
+              <button type="submit" disabled={busy} className="w-full py-3.5 bg-porter-blue hover:bg-porter-hover disabled:opacity-60 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2">
+                {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                <span>{mfa === 'setup' ? 'Enable and continue' : 'Verify'}</span>
+              </button>
+              <button type="button" onClick={async () => { await logout(); setTotp({ code: '', secret: '', url: '' }); reset(); }} className="w-full text-xs text-gray-400 hover:text-gray-600">Use a different account</button>
+            </form>
+          ) : step === 'phone' ? (
             <form onSubmit={send} className="space-y-4">
               <div>
                 <label htmlFor="login-name" className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">Your name <span className="normal-case font-normal text-gray-400">(new accounts)</span></label>

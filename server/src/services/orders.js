@@ -38,6 +38,7 @@ export function present(o, viewer) {
     vehicleName: o.vehicle_name,
     pickup: { address: o.pickup_address, lat: o.pickup_lat, lng: o.pickup_lng },
     drop: { address: o.drop_address, lat: o.drop_lat, lng: o.drop_lng },
+    stop: o.stop_address ? { address: o.stop_address, lat: o.stop_lat, lng: o.stop_lng } : null,
     distanceKm: o.distance_km,
     createdAt: iso(o.created_at),
     scheduledFor: iso(o.scheduled_for),
@@ -72,6 +73,7 @@ export function present(o, viewer) {
     goodsType: o.goods_type, notes: o.notes,
     deliveryOtp: ['assigned', 'in_transit', 'searching', 'scheduled', 'confirmed', 'pending_payment'].includes(o.status) ? o.delivery_otp : null,
     trackToken: o.track_token,
+    rating: o.driver_stars ? { stars: o.driver_stars, comment: o.rating_comment } : null,
     route: o.route_polyline,
     cancelReason: o.cancel_reason, cancelledBy: o.cancelled_by, cancelFee: o.cancel_fee,
     assignedAt: iso(o.assigned_at), pickedUpAt: iso(o.picked_up_at),
@@ -174,6 +176,7 @@ export function createOrders({ db, config, quotes, payments, hub, notify, invoic
               input.sender.name, input.sender.phone, input.receiver.name, input.receiver.phone, input.goodsType || null, input.notes || null,
               scheduledFor, randomDigits(4), idempotencyKey || null, clock.now()]
           );
+          if (q.stop) await t.query('UPDATE orders SET stop_address = $2, stop_lat = $3, stop_lng = $4 WHERE id = $1', [orderId, q.stop.address, q.stop.lat, q.stop.lng]);
           if (redeem) await t.query('INSERT INTO promo_redemptions (code, user_id, order_id) VALUES ($1,$2,$3)', [q.promoRow.code, user.id, orderId]);
           await addEvent(t, orderId, 'created', user.id, { method, total: q.pricing.total });
         });
@@ -306,6 +309,31 @@ export function createOrders({ db, config, quotes, payments, hub, notify, invoic
     return { ok: true };
   }
 
+  // Safety net for lost webhooks: ask the provider about orders still unpaid after a few minutes, and cancel
+  // checkouts that were abandoned. Runs from the background job (leader only).
+  async function reconcilePayments() {
+    const now = clock.now();
+    const rows = (await db.query(
+      `SELECT o.id, o.created_at, p.provider_order_id FROM orders o
+       JOIN payments p ON p.order_id = o.id AND p.status = 'created'
+       WHERE o.status = 'pending_payment' AND o.created_at <= $1 ORDER BY o.created_at LIMIT 50`,
+      [new Date(now.getTime() - 3 * 60_000)])).rows;
+    let recovered = 0;
+    let expired = 0;
+    for (const r of rows) {
+      let captured = null;
+      try { captured = (await payments.fetchOrderPayments(r.provider_order_id)).find((x) => x.status === 'captured'); } catch { continue; }
+      if (captured) {
+        await markPaid({ providerOrderId: r.provider_order_id, providerPaymentId: captured.id, amountPaise: captured.amount }).catch(() => {});
+        recovered += 1;
+      } else if (new Date(r.created_at).getTime() <= now.getTime() - config.PAYMENT_TIMEOUT_MINUTES * 60_000) {
+        await cancel({ role: 'system' }, r.id, 'payment_timeout').catch(() => {});
+        expired += 1;
+      }
+    }
+    return { checked: rows.length, recovered, expired };
+  }
+
   // ---------------------------------------------------------------- cancel
   async function cancel(actor, orderId, reason) {
     let refundAmount = 0;
@@ -362,6 +390,22 @@ export function createOrders({ db, config, quotes, payments, hub, notify, invoic
   async function getByToken(token) {
     const r = await db.query(`${SELECT_ORDER} WHERE o.track_token = $1`, [token]);
     return r.rows[0] ? present(r.rows[0], 'public') : null;
+  }
+
+  // ---------------------------------------------------------------- ratings
+  async function rateDriver(user, orderId, { stars, comment }) {
+    await db.tx(async (t) => {
+      const o = await lock(t, orderId);
+      if (o.customer_id !== user.id) throw notFound('Order not found.');
+      if (o.status !== 'delivered' || !o.driver_id) throw conflict('not_rateable', 'You can rate a driver after the order is delivered.');
+      if (o.driver_stars) throw conflict('already_rated', 'You have already rated this delivery.');
+      await t.query('UPDATE orders SET driver_stars = $2, rating_comment = $3, rated_at = $4 WHERE id = $1', [orderId, stars, comment || null, clock.now()]);
+      // running average; the first rating replaces the default 5.0
+      await t.query(
+        `UPDATE drivers SET rating = CASE WHEN rating_count = 0 THEN $2 ELSE (rating * rating_count + $2) / (rating_count + 1) END,
+                            rating_count = rating_count + 1 WHERE user_id = $1`, [o.driver_id, stars]);
+    });
+    return present(await fetchFull(orderId), 'customer');
   }
 
   // ---------------------------------------------------------------- driver actions
@@ -440,7 +484,7 @@ export function createOrders({ db, config, quotes, payments, hub, notify, invoic
   }
 
   return {
-    createOrder, paymentInfo, confirmCheckout, handleWebhook, markPaid, refund, cancel,
+    createOrder, paymentInfo, confirmCheckout, reconcilePayments, rateDriver, handleWebhook, markPaid, refund, cancel,
     listForCustomer, getForUser, getByToken, fetchFull,
     driverPickup, driverDeliver, adminAssign, adminResetOtp,
     // used by the dispatcher

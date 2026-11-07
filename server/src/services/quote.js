@@ -77,15 +77,24 @@ export function createQuotes({ db, config, geo, clock }) {
     if (haversineKm([pickup.lat, pickup.lng], [drop.lat, drop.lng]) < MIN_TRIP_KM) {
       throw badRequest('same_location', 'Pickup and drop cannot be the same place.');
     }
-    const route = await geo.route([pickup.lat, pickup.lng], [drop.lat, drop.lng]);
+    const stop = input.stop ? await resolvePoint(input.stop, input.cityId, 'stop') : null;
+    let route;
+    if (stop) {
+      // pickup -> stop -> drop: priced on the full distance, drawn as one continuous route
+      const a = await geo.route([pickup.lat, pickup.lng], [stop.lat, stop.lng]);
+      const b = await geo.route([stop.lat, stop.lng], [drop.lat, drop.lng]);
+      route = { km: Number((a.km + b.km).toFixed(1)), minutes: a.minutes + b.minutes, line: [...a.line, ...b.line.slice(1)], approximate: !!(a.approximate || b.approximate) };
+    } else {
+      route = await geo.route([pickup.lat, pickup.lng], [drop.lat, drop.lng]);
+    }
     if (route.km > MAX_CITY_TRIP_KM) throw badRequest('too_far', `City delivery is limited to ${MAX_CITY_TRIP_KM} km. For longer distances use All-India Parcel.`);
 
     const { promo, error: promoLoadError } = await loadPromo(input.promoCode, userId, q);
-    const pricing = computeFare({ vehicle, distanceKm: route.km, helperCount: input.helperCount || 0, hasStop: !!input.hasStop, promo, gstRate: config.gstRate });
+    const pricing = computeFare({ vehicle, distanceKm: route.km, helperCount: input.helperCount || 0, hasStop: !!stop, promo, gstRate: config.gstRate });
     let promoError = promoLoadError;
     if (promo && pricing.discount === 0) promoError = promoApplies(promo, vehicle, pricing.subtotal).reason || 'This coupon cannot be applied.';
     return {
-      serviceType: 'city', cityId: input.cityId, vehicle, pickup, drop, distanceKm: route.km, etaMinutes: vehicle.etaMinutes,
+      serviceType: 'city', cityId: input.cityId, vehicle, pickup, drop, stop, distanceKm: route.km, etaMinutes: vehicle.etaMinutes,
       route: { line: route.line, minutes: route.minutes, approximate: route.approximate }, pricing,
       promo: input.promoCode ? { code: String(input.promoCode).toUpperCase(), valid: !promoError && pricing.discount > 0, error: promoError } : null,
       promoRow: promoError ? null : promo

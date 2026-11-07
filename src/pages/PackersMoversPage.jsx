@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { usePageTitle } from '../lib/usePageTitle';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { BRANDING } from '../config/branding';
@@ -13,6 +14,7 @@ import {
 } from 'lucide-react';
 
 export default function PackersMoversPage() {
+  usePageTitle('Packers & Movers');
   const navigate = useNavigate();
   const { selectedCity, user, gstRate, paymentsEnabled, requireLogin, bookOrder } = useApp();
   const { state } = useLocation();

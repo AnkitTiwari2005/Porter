@@ -18,6 +18,7 @@ export async function createDb(url) {
       kind: 'pglite',
       query: async (text, params = []) => shape(await client.query(text, params)),
       exec: (sql) => client.exec(sql),
+      listen: async (channel, handler) => client.listen(channel, handler),
       tx: (fn) => client.transaction(async (t) => fn({ query: async (text, params = []) => shape(await t.query(text, params)) })),
       close: () => client.close()
     };
@@ -42,6 +43,21 @@ export async function createDb(url) {
       } finally {
         client.release();
       }
+    },
+    // Dedicated connection (LISTEN cannot use the pool); reconnects itself if the connection drops.
+    listen: async (channel, handler) => {
+      let client;
+      let stopped = false;
+      const connect = async () => {
+        client = new pg.Client({ connectionString: url });
+        client.on('error', () => {});
+        client.on('notification', (m) => handler(m.payload));
+        client.on('end', () => { if (!stopped) setTimeout(() => connect().catch(() => {}), 2000).unref?.(); });
+        await client.connect();
+        await client.query(`LISTEN ${channel}`);
+      };
+      await connect().catch(() => { if (!stopped) setTimeout(() => connect().catch(() => {}), 2000).unref?.(); });
+      return () => { stopped = true; client?.end().catch(() => {}); };
     },
     close: () => pool.end()
   };

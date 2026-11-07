@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { usePageTitle } from '../lib/usePageTitle';
 import { Link, useParams, useLocation } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { api } from '../lib/api';
 import InteractiveMap from '../components/InteractiveMap';
 import { STATUS_BADGE } from '../components/TrackOrderModal';
-import { Truck, Phone, ShieldCheck, MapPin, ArrowLeft, Share2, FileText, CheckCircle2, AlertTriangle, CreditCard, XCircle, Loader2 } from 'lucide-react';
+import { Star, Truck, Phone, ShieldCheck, MapPin, ArrowLeft, Share2, FileText, CheckCircle2, AlertTriangle, CreditCard, XCircle, Loader2 } from 'lucide-react';
 
 const STEPS = ['Booked', 'Driver assigned', 'On the way', 'Delivered'];
 const stepIndex = (s) => ({ pending_payment: -1, scheduled: 0, confirmed: 0, searching: 0, assigned: 1, in_transit: 2, delivered: 3 }[s] ?? 0);
@@ -40,7 +41,44 @@ function useOrderLive(orderId) {
   return { order, error, driverPos, reload: load };
 }
 
+function RatingCard({ order, onRated }) {
+  const [stars, setStars] = useState(0);
+  const [comment, setComment] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  if (order.rating) {
+    return (
+      <div className="bg-white p-5 rounded-2xl border border-gray-200 text-center space-y-1">
+        <p className="text-xs font-bold text-gray-500">Your rating</p>
+        <div className="flex justify-center gap-1">{[1, 2, 3, 4, 5].map((n) => <Star key={n} className={`w-5 h-5 ${n <= order.rating.stars ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`} />)}</div>
+        {order.rating.comment && <p className="text-xs text-gray-500 italic">“{order.rating.comment}”</p>}
+      </div>
+    );
+  }
+  const submit = async () => {
+    setBusy(true); setErr('');
+    try { await api.post(`/orders/${order.id}/rating`, { stars, ...(comment.trim() ? { comment: comment.trim() } : {}) }); await onRated(); }
+    catch (e) { setErr(e.message); } finally { setBusy(false); }
+  };
+  return (
+    <div className="bg-white p-5 rounded-2xl border border-gray-200 space-y-3">
+      <p className="text-sm font-bold text-gray-900">How was {order.driver?.name || 'your driver'}?</p>
+      <div className="flex gap-1" role="radiogroup" aria-label="Rating">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button key={n} type="button" role="radio" aria-checked={stars === n} aria-label={`${n} star${n > 1 ? 's' : ''}`} onClick={() => setStars(n)} className="p-0.5">
+            <Star className={`w-7 h-7 transition ${n <= stars ? 'fill-amber-400 text-amber-400' : 'text-gray-300 hover:text-amber-300'}`} />
+          </button>
+        ))}
+      </div>
+      <textarea value={comment} onChange={(e) => setComment(e.target.value)} maxLength={300} rows={2} placeholder="Add a comment (optional)" aria-label="Comment" className="w-full px-3 py-2 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-porter-blue" />
+      {err && <p role="alert" className="text-xs text-rose-600">{err}</p>}
+      <button disabled={!stars || busy} onClick={submit} className="w-full py-2.5 bg-porter-blue text-white text-xs font-bold rounded-xl disabled:opacity-50">{busy ? 'Submitting…' : 'Submit rating'}</button>
+    </div>
+  );
+}
+
 export default function OrderTrackingPage() {
+  usePageTitle('Track your order');
   const { orders, ordersLoading, activeTrackingOrderId, setActiveTrackingOrderId, user, requireLogin, cancelOrder, payPending, refreshOrders } = useApp();
   const { orderId: routeId } = useParams();
   const { state } = useLocation();
@@ -171,10 +209,11 @@ export default function OrderTrackingPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           <div className="lg:col-span-8 space-y-4">
             {pickup && drop && (
-              <InteractiveMap pickupCoord={pickup} dropCoord={drop} routeLine={order.route} driverCoord={driverCoord} pickupLabel={order.pickup.address} dropLabel={order.drop.address} driverLabel={order.driver?.name || 'Driver'} height="380px" />
+              <InteractiveMap pickupCoord={pickup} dropCoord={drop} stopCoord={order.stop?.lat != null ? [order.stop.lat, order.stop.lng] : null} routeLine={order.route} driverCoord={driverCoord} pickupLabel={order.pickup.address} dropLabel={order.drop.address} driverLabel={order.driver?.name || 'Driver'} height="380px" />
             )}
             <div className="bg-white p-5 rounded-2xl border border-gray-200 grid sm:grid-cols-2 gap-4 text-xs">
               <div className="flex gap-2.5"><MapPin className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" /><div><p className="text-gray-400 font-semibold">Pickup</p><p className="font-semibold text-gray-800">{order.pickup.address}</p></div></div>
+              {order.stop && <div className="flex gap-2.5 sm:col-span-2"><MapPin className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" /><div><p className="text-gray-400 font-semibold">Stop on the way</p><p className="font-semibold text-gray-800">{order.stop.address}</p></div></div>}
               <div className="flex gap-2.5"><MapPin className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" /><div><p className="text-gray-400 font-semibold">Drop</p><p className="font-semibold text-gray-800">{order.drop.address}</p></div></div>
             </div>
             {order.events?.length > 0 && (
@@ -206,6 +245,8 @@ export default function OrderTrackingPage() {
                 {order.driver.phone && <a href={`tel:+91${order.driver.phone}`} className="w-full py-2.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold flex items-center justify-center gap-2"><Phone className="w-3.5 h-3.5" /> Call driver</a>}
               </div>
             )}
+
+            {order.status === 'delivered' && order.driver && <RatingCard order={order} onRated={reload} />}
 
             {order.deliveryOtp && !cancelled && order.status !== 'pending_payment' && (
               <div className="bg-amber-50 p-5 rounded-2xl border border-amber-200">

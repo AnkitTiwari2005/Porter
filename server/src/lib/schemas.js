@@ -21,7 +21,7 @@ const point = z.object({
 export const quoteSchema = z.discriminatedUnion('serviceType', [
   z.object({
     serviceType: z.literal('city'), cityId: z.string().max(40), vehicleId: z.string().max(40), pickup: point, drop: point,
-    helperCount: z.number().int().min(0).max(2).default(0), hasStop: z.boolean().default(false),
+    helperCount: z.number().int().min(0).max(2).default(0), stop: point.optional(),
     promoCode: z.string().trim().max(30).optional().transform((v) => v || undefined)
   }),
   z.object({
@@ -54,3 +54,12 @@ export const leadSchema = z.object({
   details: z.record(z.string().max(500)).default({}),
   website: z.string().max(500).optional() // honeypot: real users leave it empty; the route fakes success if filled
 });
+
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use the format YYYY-MM-DD').refine((v) => !Number.isNaN(Date.parse(`${v}T00:00:00Z`)), 'Not a real date');
+export const driverDocsSchema = z.object({
+  licenseNo: z.string().trim().min(5).max(30),
+  licenseExpiry: isoDate,
+  rcExpiry: isoDate,
+  insuranceExpiry: isoDate
+});
+export const ratingSchema = z.object({ stars: z.number().int().min(1).max(5), comment: z.string().trim().max(300).optional() });

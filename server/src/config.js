@@ -44,7 +44,12 @@ const schema = z.object({
   OFFER_TTL_SECONDS: z.coerce.number().int().min(5).default(30),
   DISPATCH_TIMEOUT_MINUTES: z.coerce.number().int().min(1).default(10),
   DISPATCH_RADIUS_KM: z.coerce.number().min(1).default(15),
-  RUN_DISPATCHER: bool('true')
+  RUN_DISPATCHER: bool('true'),
+  PAYMENT_TIMEOUT_MINUTES: z.coerce.number().int().min(5).default(30),
+  RATE_LIMIT_STORE: z.enum(['memory', 'postgres']).optional(),
+  ADMIN_REQUIRE_TOTP: z.enum(['true', 'false']).optional(),
+  METRICS_TOKEN: optStr,
+  RATE_LIMIT_IN_TESTS: bool()
 });
 
 export function loadConfig(env = process.env) {
@@ -82,6 +87,9 @@ export function loadConfig(env = process.env) {
     isProd,
     cookieSecure: c.COOKIE_SECURE ? c.COOKIE_SECURE === 'true' : isProd,
     corsOrigins: c.CORS_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean),
-    gstRate: c.GST_PERCENT / 100
+    gstRate: c.GST_PERCENT / 100,
+    rateLimitStore: c.RATE_LIMIT_STORE || (isProd ? 'postgres' : 'memory'),
+    adminRequireTotp: c.ADMIN_REQUIRE_TOTP ? c.ADMIN_REQUIRE_TOTP === 'true' : isProd,
+    rateLimitInTests: c.RATE_LIMIT_IN_TESTS
   });
 }

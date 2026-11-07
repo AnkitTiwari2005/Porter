@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { usePageTitle } from '../lib/usePageTitle';
 import { api } from '../lib/api';
 import { BRANDING } from '../config/branding';
 import { 
@@ -7,6 +8,7 @@ import {
 } from 'lucide-react';
 
 export default function EnterprisePage() {
+  usePageTitle('Enterprise logistics');
   const [formData, setFormData] = useState({
     companyName: '',
     contactName: '',

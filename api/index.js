@@ -69,7 +69,10 @@ async function bootstrap() {
     gstRate: 0.05,
     cookieSecure: true,
     corsOrigins,
-    RUN_DISPATCHER: false
+    RUN_DISPATCHER: false,
+    PAYMENT_TIMEOUT_MINUTES: 30,
+    rateLimitStore: isPostgres ? 'postgres' : 'memory',
+    adminRequireTotp: process.env.ADMIN_REQUIRE_TOTP === 'true'
   };
 
   const db = await createDb(config.DATABASE_URL);

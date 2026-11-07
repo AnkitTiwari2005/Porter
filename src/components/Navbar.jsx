@@ -137,7 +137,7 @@ export default function Navbar() {
                 className="absolute top-full left-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 animate-fadeIn"
               >
                 <Link
-                  to="/trucks-mumbai"
+                  to="/trucks"
                   onClick={() => setServicesDropdownOpen(false)}
                   className="flex items-start gap-3 px-4 py-2.5 hover:bg-blue-50/50 transition"
                 >
@@ -151,7 +151,7 @@ export default function Navbar() {
                 </Link>
 
                 <Link
-                  to="/two-wheelers-mumbai"
+                  to="/two-wheelers"
                   onClick={() => setServicesDropdownOpen(false)}
                   className="flex items-start gap-3 px-4 py-2.5 hover:bg-emerald-50/50 transition"
                 >
@@ -282,8 +282,8 @@ export default function Navbar() {
           <div className="space-y-3 font-semibold text-sm">
             <Link to="/" onClick={() => setMobileMenuOpen(false)} className="block py-1 text-gray-800">Home</Link>
             <Link to="/fare-estimate" onClick={() => setMobileMenuOpen(false)} className="block py-1 text-gray-800">Fare Estimate Calculator</Link>
-            <Link to="/trucks-mumbai" onClick={() => setMobileMenuOpen(false)} className="block py-1 text-gray-800">City Mini Trucks (Tata Ace)</Link>
-            <Link to="/two-wheelers-mumbai" onClick={() => setMobileMenuOpen(false)} className="block py-1 text-gray-800">Two-Wheelers (Courier)</Link>
+            <Link to="/trucks" onClick={() => setMobileMenuOpen(false)} className="block py-1 text-gray-800">City Mini Trucks (Tata Ace)</Link>
+            <Link to="/two-wheelers" onClick={() => setMobileMenuOpen(false)} className="block py-1 text-gray-800">Two-Wheelers (Courier)</Link>
             <Link to="/packers-and-movers" onClick={() => setMobileMenuOpen(false)} className="block py-1 text-gray-800">Packers & Movers (Shifting)</Link>
             <Link to="/all-india-parcel" onClick={() => setMobileMenuOpen(false)} className="block py-1 text-gray-800">All India Intercity Parcel</Link>
             <Link to="/enterprise" onClick={() => setMobileMenuOpen(false)} className="block py-1 text-gray-800">{BRANDING.name} Enterprise (B2B)</Link>

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -9,8 +9,8 @@ import TrackOrderModal from './components/TrackOrderModal';
 
 import HomePage from './pages/HomePage';
 import FareEstimatePage from './pages/FareEstimatePage';
-import TrucksMumbaiPage from './pages/TrucksMumbaiPage';
-import TwoWheelersMumbaiPage from './pages/TwoWheelersMumbaiPage';
+import TrucksPage from './pages/TrucksPage';
+import TwoWheelersPage from './pages/TwoWheelersPage';
 import PackersMoversPage from './pages/PackersMoversPage';
 import AllIndiaParcelPage from './pages/AllIndiaParcelPage';
 import EnterprisePage from './pages/EnterprisePage';
@@ -41,8 +41,10 @@ export default function App() {
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/fare-estimate" element={<FareEstimatePage />} />
-              <Route path="/trucks-mumbai" element={<TrucksMumbaiPage />} />
-              <Route path="/two-wheelers-mumbai" element={<TwoWheelersMumbaiPage />} />
+              <Route path="/trucks" element={<TrucksPage />} />
+              <Route path="/two-wheelers" element={<TwoWheelersPage />} />
+              <Route path="/trucks-mumbai" element={<Navigate to="/trucks" replace />} />
+              <Route path="/two-wheelers-mumbai" element={<Navigate to="/two-wheelers" replace />} />
               <Route path="/packers-and-movers" element={<PackersMoversPage />} />
               <Route path="/all-india-parcel" element={<AllIndiaParcelPage />} />
               <Route path="/enterprise" element={<EnterprisePage />} />
@@ -51,7 +53,9 @@ export default function App() {
               <Route path="/t/:token" element={<PublicTrackingPage />} />
               <Route path="/terms" element={<LegalPage kind="terms" />} />
               <Route path="/privacy" element={<LegalPage kind="privacy" />} />
-              <Route path="/security" element={<LegalPage kind="security" />} />
+              <Route path="/safety" element={<LegalPage kind="safety" />} />
+              <Route path="/refund-policy" element={<LegalPage kind="refunds" />} />
+              <Route path="/security" element={<Navigate to="/safety" replace />} />
               <Route path="/admin" element={<AdminDashboardPage />} />
               <Route path="/driver" element={<DriverPortalPage />} />
               <Route path="*" element={<NotFoundPage />} />

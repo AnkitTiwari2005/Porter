@@ -52,7 +52,13 @@ export async function makeCtx(env = {}) {
   const clock = { t: new Date('2030-11-04T10:00:00Z'), now() { return new Date(this.t); }, advance(ms) { this.t = new Date(this.t.getTime() + ms); } };
   const rzpCalls = [];
   let seq = 0;
+  const rzpPayments = {}; // provider_order_id -> items returned by GET /orders/:id/payments
   const fetchImpl = async (url, init) => {
+    if (init.method === 'GET') {
+      const m = /\/orders\/([^/]+)\/payments$/.exec(url);
+      if (m && rzpPayments[m[1]] === 'ERROR') return { ok: false, status: 500, json: async () => ({}) };
+      return { ok: true, json: async () => ({ items: rzpPayments[m?.[1]] || [] }) };
+    }
     const body = JSON.parse(init.body);
     rzpCalls.push({ url, body });
     if (url.endsWith('/orders')) return { ok: true, json: async () => ({ id: `order_T${++seq}` }) };
@@ -61,7 +67,9 @@ export async function makeCtx(env = {}) {
   };
   const sms = createSms(config);
   const payments = createPayments(config, { fetchImpl });
-  const ctx = createApp({ config, db, deps: { clock, sms, payments } });
+  const deps = { clock, sms, payments };
+  const ctx = createApp({ config, db, deps });
+  const secondInstance = () => createApp({ config, db, deps });
   const http = request(ctx.app);
 
   const agent = () => request.agent(ctx.app);
@@ -77,8 +85,11 @@ export async function makeCtx(env = {}) {
     return login(phone, 'Admin');
   }
   async function makeDriver(admin, { phone, cityId = 'mumbai', vehicleId = 'tata-ace', vehicleNo = 'MH02AB1234', lat = 19.1197, lng = 72.8464, online = true }) {
-    const r = await admin.post('/api/admin/drivers').send({ phone, name: `Driver ${phone.slice(-4)}`, cityId, vehicleId, vehicleNo });
+    const documents = { licenseNo: 'MH0220200012345', licenseExpiry: '2040-01-01', rcExpiry: '2040-01-01', insuranceExpiry: '2040-01-01' };
+    const r = await admin.post('/api/admin/drivers').send({ phone, name: `Driver ${phone.slice(-4)}`, cityId, vehicleId, vehicleNo, documents });
     if (r.status !== 201) throw new Error(`driver create ${r.status} ${JSON.stringify(r.body)}`);
+    const ap = await admin.patch(`/api/admin/drivers/${r.body.id}`).send({ status: 'approved' });
+    if (ap.status !== 200) throw new Error(`driver approve ${ap.status} ${JSON.stringify(ap.body)}`);
     const a = await login(phone, `Driver ${phone.slice(-4)}`);
     if (online) await a.post('/api/driver/online').send({ online: true });
     await a.post('/api/driver/location').send({ lat, lng });
@@ -92,7 +103,7 @@ export async function makeCtx(env = {}) {
   };
   const lastOtp = (phone) => [...sms.sent].reverse().find((m) => m.phone === phone && /delivery OTP/.test(m.body))?.body.match(/OTP for order \S+ is (\d{4})/)?.[1];
 
-  return { config, db, clock, ctx, http, agent, login, makeAdmin, makeDriver, sign, webhook, sms, rzpCalls, lastOtp, close: async () => { await db.close(); await database.drop(); } };
+  return { config, db, clock, ctx, secondInstance, rzpPayments, http, agent, login, makeAdmin, makeDriver, sign, webhook, sms, rzpCalls, lastOtp, close: async () => { await db.close(); await database.drop(); } };
 }
 
 export const cityQuote = (over = {}) => ({

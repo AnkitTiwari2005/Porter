@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { usePageTitle } from '../lib/usePageTitle';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { computeFare } from '../utils/pricing';
@@ -7,6 +8,7 @@ import { api, newIdempotencyKey } from '../lib/api';
 import InteractiveMap from '../components/InteractiveMap';
 import PaymentModal from '../components/PaymentModal';
 import LocationSearchInput from '../components/LocationSearchInput';
+import { useFocusTrap } from '../lib/useFocusTrap';
 import { 
   Calculator, MapPin, Truck, Bike, ArrowRight, Check, Tag, ShieldCheck, 
   Info, Clock, AlertCircle, Sparkles, Navigation, X, CheckCircle2, CreditCard, 
@@ -16,6 +18,7 @@ import {
 const toPoint = (text, place) => (place && place.address === text ? { address: text, lat: place.lat, lng: place.lng } : { address: text });
 
 export default function FareEstimatePage() {
+  usePageTitle('Fare estimate');
   const { state } = useLocation();
   const navigate = useNavigate();
   const { selectedCity, setIsCityModalOpen, user, fleetTariffs, gstRate, cancelFee, catalogError, paymentsEnabled, requireLogin, bookOrder } = useApp();
@@ -33,6 +36,7 @@ export default function FareEstimatePage() {
   const [drop, setDrop] = useState(state?.drop || hub(1).text);
   const [dropPlace, setDropPlace] = useState(state?.drop ? null : hub(1).place);
   const [extraStop, setExtraStop] = useState('');
+  const [stopPlace, setStopPlace] = useState(null);
   const [showExtraStop, setShowExtraStop] = useState(false);
   const [helperCount, setHelperCount] = useState(0);
 
@@ -54,6 +58,8 @@ export default function FareEstimatePage() {
 
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const bookingCardRef = useRef(null);
+  useFocusTrap(isBookingModalOpen, bookingCardRef);
   const [bookingForm, setBookingForm] = useState({
     senderName: user.name || '', senderPhone: user.phone || '', receiverName: '', receiverPhone: '', goodsType: 'Carton Boxes & Electronics'
   });
@@ -70,9 +76,9 @@ export default function FareEstimatePage() {
     serviceType: 'city', cityId: selectedCity.id, vehicleId: selectedVehicle.id,
     pickup: toPoint(pickup.trim(), pickupPlace), drop: toPoint(drop.trim(), dropPlace),
     helperCount: selectedVehicle.category === 'truck' ? helperCount : 0,
-    hasStop: showExtraStop && !!extraStop.trim(),
+    ...(showExtraStop && extraStop.trim() ? { stop: toPoint(extraStop.trim(), stopPlace) } : {}),
     ...(promoCode ? { promoCode } : {})
-  }), [selectedCity.id, selectedVehicle, pickup, pickupPlace, drop, dropPlace, helperCount, showExtraStop, extraStop, promoCode]);
+  }), [selectedCity.id, selectedVehicle, pickup, pickupPlace, drop, dropPlace, helperCount, showExtraStop, extraStop, stopPlace, promoCode]);
   const quoteKey = JSON.stringify(quoteInput);
   const [refreshTick, setRefreshTick] = useState(0);
 
@@ -143,8 +149,7 @@ export default function FareEstimatePage() {
       expectedTotal: pricing.total,
       sender: { name: bookingForm.senderName.trim(), phone: bookingForm.senderPhone },
       receiver: { name: bookingForm.receiverName.trim(), phone: bookingForm.receiverPhone },
-      goodsType: bookingForm.goodsType,
-      ...(showExtraStop && extraStop.trim() ? { notes: `Extra stop: ${extraStop.trim()}` } : {})
+      goodsType: bookingForm.goodsType
     };
     const body = JSON.stringify(payload);
     if (idem.current.body !== body) idem.current = { body, key: newIdempotencyKey() };
@@ -217,7 +222,7 @@ export default function FareEstimatePage() {
                 pickupCoord={pickupCoord}
                 dropCoord={dropCoord}
                 routeLine={quote?.route?.line}
-                stopCoord={null}
+                stopCoord={quote?.stop ? [quote.stop.lat, quote.stop.lng] : null}
                 pickupLabel={pickup}
                 dropLabel={drop}
                 stopLabel={extraStop}
@@ -258,6 +263,7 @@ export default function FareEstimatePage() {
                     <LocationSearchInput
                       value={extraStop}
                       onChange={setExtraStop}
+                      onSelect={setStopPlace}
                       cityId={selectedCity.id}
                       placeholder={`Enter intermediate drop point in ${selectedCity.name}...`}
                       dotColor="amber"
@@ -558,8 +564,8 @@ export default function FareEstimatePage() {
 
       {/* TRIP DETAILS MODAL */}
       {isBookingModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden border border-gray-100">
+        <div role="dialog" aria-modal="true" aria-label="Booking details" onKeyDown={(e) => e.key === 'Escape' && setIsBookingModalOpen(false)} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+          <div ref={bookingCardRef} tabIndex={-1} className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden border border-gray-100 max-h-[92vh] overflow-y-auto">
             <form onSubmit={handleProceedToPayment}>
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
                 <div>

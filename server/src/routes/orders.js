@@ -1,14 +1,14 @@
 import express from 'express';
 import { z } from 'zod';
 import { wrap, validate } from '../lib/http.js';
-import { createOrderSchema } from '../lib/schemas.js';
+import { createOrderSchema, ratingSchema } from '../lib/schemas.js';
 import { requireUser, limiter } from '../middleware.js';
 import { notFound, forbidden } from '../lib/errors.js';
 
 export function orderRoutes({ config, db, orders, invoices, hub }) {
   const r = express.Router();
 
-  r.post('/orders', requireUser, limiter(config, { windowMs: 60_000, max: 20 }), validate(createOrderSchema), wrap(async (req, res) => {
+  r.post('/orders', requireUser, limiter(config, { name: 'orders-create', windowMs: 60_000, max: 20 }, db), validate(createOrderSchema), wrap(async (req, res) => {
     if (req.user.role !== 'customer') throw forbidden('Only customer accounts can book.');
     const key = String(req.headers['idempotency-key'] || '').slice(0, 100) || null;
     const out = await orders.createOrder(req.user, req.body, key);
@@ -25,6 +25,10 @@ export function orderRoutes({ config, db, orders, invoices, hub }) {
 
   r.post('/orders/:id/cancel', requireUser, validate(z.object({ reason: z.string().trim().max(200).optional() })), wrap(async (req, res) => {
     res.json({ order: await orders.cancel(req.user, req.params.id, req.body.reason) });
+  }));
+
+  r.post('/orders/:id/rating', requireUser, validate(ratingSchema), wrap(async (req, res) => {
+    res.json({ order: await orders.rateDriver(req.user, req.params.id, req.body) });
   }));
 
   r.post('/orders/:id/payment/confirm', requireUser, validate(z.object({
@@ -62,7 +66,7 @@ export function orderRoutes({ config, db, orders, invoices, hub }) {
   }));
 
   // Public, unguessable share link for the receiver. No phone numbers, no OTP.
-  r.get('/track/:token', limiter(config, { windowMs: 60_000, max: 60 }), wrap(async (req, res) => {
+  r.get('/track/:token', limiter(config, { name: 'track-public', windowMs: 60_000, max: 60 }, db), wrap(async (req, res) => {
     const o = await orders.getByToken(req.params.token);
     if (!o) throw notFound('Tracking link not found.');
     res.setHeader('Cache-Control', 'no-store');

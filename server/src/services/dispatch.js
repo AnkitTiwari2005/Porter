@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { haversineKm } from '../../../shared/cities.js';
 import { conflict, notFound } from '../lib/errors.js';
 
@@ -94,20 +95,54 @@ export function createDispatcher({ db, config, orders, hub, clock, log = console
     return { ok: true };
   }
 
+  // ---- leader election: with several API instances only the lease holder runs background jobs
+  const holder = crypto.randomUUID();
+  const leaseMs = Math.max(15_000, config.DISPATCH_INTERVAL_MS * 3);
+  async function tryLead() {
+    const now = clock.now();
+    const r = await db.query(
+      `INSERT INTO job_lease (name, holder, expires_at) VALUES ('background', $1, $2)
+       ON CONFLICT (name) DO UPDATE SET holder = $1, expires_at = $2
+       WHERE job_lease.expires_at <= $3 OR job_lease.holder = $1
+       RETURNING holder`, [holder, new Date(now.getTime() + leaseMs), now]);
+    return r.rowCount > 0;
+  }
+
+  // Slow clean-up and consistency jobs (about once a minute).
+  async function housekeeping() {
+    const now = clock.now();
+    const out = { reconcile: await orders.reconcilePayments() };
+    await db.query('DELETE FROM otp_challenges WHERE created_at < $1', [new Date(now.getTime() - 86_400_000)]);
+    await db.query('DELETE FROM sessions WHERE expires_at < $1', [new Date(now.getTime() - 7 * 86_400_000)]);
+    await db.query('DELETE FROM webhook_events WHERE received_at < $1', [new Date(now.getTime() - 30 * 86_400_000)]);
+    await db.query('DELETE FROM rate_limits WHERE reset_at < $1', [now]);
+    const today = now.toISOString().slice(0, 10);
+    const sus = await db.query(
+      `UPDATE drivers SET status = 'suspended', online = false
+       WHERE status = 'approved' AND (license_expiry < $1::date OR rc_expiry < $1::date OR insurance_expiry < $1::date) RETURNING user_id`, [today]);
+    out.suspendedForExpiredDocs = sus.rowCount;
+    return out;
+  }
+
   let timer = null;
   let running = false;
   let queued = false;
+  let lastHousekeeping = 0;
   const run = async () => {
     if (running) { queued = true; return; }
     running = true;
-    try { await tick(); } catch (e) { log.error?.({ err: e.message }, 'dispatch tick failed'); }
+    try {
+      if (await tryLead()) {
+        await tick();
+        if (Date.now() - lastHousekeeping > 60_000) { lastHousekeeping = Date.now(); await housekeeping(); }
+      }
+    } catch (e) { log.error?.({ err: e.message }, 'background job failed'); }
     running = false;
     if (queued) { queued = false; setImmediate(run); }
   };
   return {
-    tick, acceptOffer, rejectOffer,
-    // Only an instance that runs the dispatcher reacts to kicks; with RUN_DISPATCHER=false (e.g. a separate worker
-    // process does the matching) the API never dispatches in the background.
+    tick, housekeeping, tryLead, acceptOffer, rejectOffer,
+    // Only an instance that runs the dispatcher reacts to kicks; with RUN_DISPATCHER=false the API never dispatches.
     kick: () => { if (timer) setImmediate(run); },
     start() { if (!timer) { timer = setInterval(run, config.DISPATCH_INTERVAL_MS); timer.unref?.(); } },
     stop() { if (timer) clearInterval(timer); timer = null; }

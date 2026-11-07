@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { usePageTitle } from '../lib/usePageTitle';
 import { useParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import InteractiveMap from '../components/InteractiveMap';
@@ -7,6 +8,7 @@ import { Truck, MapPin } from 'lucide-react';
 
 // Receiver-facing page opened from the SMS / share link. No login, no phone numbers, no OTP.
 export default function PublicTrackingPage() {
+  usePageTitle('Track delivery');
   const { token } = useParams();
   const [order, setOrder] = useState(null);
   const [error, setError] = useState('');

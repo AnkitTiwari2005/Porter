@@ -62,9 +62,9 @@ export default function Footer() {
           <div>
             <h5 className="text-xs font-bold uppercase tracking-wider text-white mb-4">Fleet & Services</h5>
             <ul className="space-y-2.5">
-              <li><Link to="/trucks-mumbai" className="hover:text-white transition">Tata Ace (Chota Hathi)</Link></li>
-              <li><Link to="/trucks-mumbai" className="hover:text-white transition">3-Wheeler Auto Cargo</Link></li>
-              <li><Link to="/two-wheelers-mumbai" className="hover:text-white transition">2-Wheeler Instant Parcel</Link></li>
+              <li><Link to="/trucks" className="hover:text-white transition">Tata Ace (Chota Hathi)</Link></li>
+              <li><Link to="/trucks" className="hover:text-white transition">3-Wheeler Auto Cargo</Link></li>
+              <li><Link to="/two-wheelers" className="hover:text-white transition">2-Wheeler Instant Parcel</Link></li>
               <li><Link to="/all-india-parcel" className="hover:text-white transition">All India Parcel Courier</Link></li>
               <li><Link to="/packers-and-movers" className="hover:text-white transition">Packers & Movers (Shifting)</Link></li>
               <li><Link to="/enterprise" className="hover:text-white transition">{BRANDING.name} Enterprise Logistics</Link></li>
@@ -113,7 +113,9 @@ export default function Footer() {
             <span>•</span>
             <Link to="/privacy" className="hover:text-slate-300">Privacy Policy</Link>
             <span>•</span>
-            <Link to="/security" className="hover:text-slate-300">Security</Link>
+            <Link to="/safety" className="hover:text-slate-300">Safety</Link>
+            <span>•</span>
+            <Link to="/refund-policy" className="hover:text-slate-300">Cancellation & Refunds</Link>
           </div>
         </div>
       </div>

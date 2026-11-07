@@ -35,10 +35,7 @@ export function AppProvider({ children }) {
   // Bootstrap: who am I, and what does the catalogue cost right now?
   useEffect(() => {
     api.get('/me').then((r) => setAccount(r.user)).catch(() => setAccount(null)).finally(() => setAuthReady(true));
-    api.get('/catalog').then(setCatalog).catch(() => {
-      // Graceful fallback to static catalogue if backend is temporarily unreachable
-      setCatalog(null);
-    });
+    api.get('/catalog').then(setCatalog).catch(() => setCatalogError('Live prices are unavailable right now. Please refresh.'));
   }, []);
 
   const refreshOrders = useCallback(async () => {
@@ -52,6 +49,10 @@ export function AppProvider({ children }) {
   }, [account]);
 
   useEffect(() => { refreshOrders(); }, [refreshOrders]);
+
+  // An admin who passed the SMS code but not the authenticator code must finish signing in: reopen the dialog.
+  useEffect(() => { if (account?.mfa) setIsLoginModalOpen(true); }, [account]);
+  const refreshAccount = useCallback(async () => { const r = await api.get('/me'); setAccount(r.user); return r.user; }, []);
 
   const requestOtp = (phone) => api.post('/auth/otp/request', { phone });
   const verifyOtp = async (phone, code, name) => {
@@ -115,13 +116,13 @@ export function AppProvider({ children }) {
   }, [refreshOrders]);
 
   const user = useMemo(() => ({
-    isLoggedIn: !!account, id: account?.id, name: account?.name || '', phone: account?.phone || '', role: account?.role || null
+    isLoggedIn: !!account, mfa: account?.mfa || null, id: account?.id, name: account?.name || '', phone: account?.phone || '', role: account?.role || null
   }), [account]);
 
   const value = {
     selectedCity, setSelectedCity,
     isCityModalOpen, setIsCityModalOpen, isLoginModalOpen, setIsLoginModalOpen, isTrackModalOpen, setIsTrackModalOpen,
-    authReady, user, requestOtp, verifyOtp, logout, requireLogin,
+    authReady, user, requestOtp, verifyOtp, logout, requireLogin, refreshAccount,
     catalog, catalogError, fleetTariffs, gstRate: catalog?.gstRate ?? 0.05, paymentsEnabled: !!catalog?.paymentsEnabled, cancelFee: catalog?.cancelFeeRupees ?? 0,
     orders, ordersLoading, refreshOrders, bookOrder, payPending, cancelOrder,
     activeTrackingOrderId, setActiveTrackingOrderId
