@@ -17,6 +17,7 @@ export function AppProvider({ children }) {
   const [isCityModalOpen, setIsCityModalOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isTrackModalOpen, setIsTrackModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const [authReady, setAuthReady] = useState(false);
   const [account, setAccount] = useState(null);              // { id, phone, name, role } | null
@@ -53,6 +54,11 @@ export function AppProvider({ children }) {
   // An admin who passed the SMS code but not the authenticator code must finish signing in: reopen the dialog.
   useEffect(() => { if (account?.mfa) setIsLoginModalOpen(true); }, [account]);
   const refreshAccount = useCallback(async () => { const r = await api.get('/me'); setAccount(r.user); return r.user; }, []);
+  const updateUserName = useCallback(async (name) => {
+    const r = await api.patch('/me', { name });
+    setAccount(r.user);
+    return r.user;
+  }, []);
 
   const requestOtp = (phone) => api.post('/auth/otp/request', { phone });
   const verifyOtp = async (phone, code, name) => {
@@ -122,7 +128,8 @@ export function AppProvider({ children }) {
   const value = {
     selectedCity, setSelectedCity,
     isCityModalOpen, setIsCityModalOpen, isLoginModalOpen, setIsLoginModalOpen, isTrackModalOpen, setIsTrackModalOpen,
-    authReady, user, requestOtp, verifyOtp, logout, requireLogin, refreshAccount,
+    isProfileModalOpen, setIsProfileModalOpen,
+    authReady, user, requestOtp, verifyOtp, logout, requireLogin, refreshAccount, updateUserName,
     catalog, catalogError, fleetTariffs, gstRate: catalog?.gstRate ?? 0.05, paymentsEnabled: !!catalog?.paymentsEnabled, cancelFee: catalog?.cancelFeeRupees ?? 0,
     orders, ordersLoading, refreshOrders, bookOrder, payPending, cancelOrder,
     activeTrackingOrderId, setActiveTrackingOrderId

@@ -41,7 +41,7 @@ function OfferCard({ offer, onAccept, onReject, busy }) {
 
 export default function DriverPortalPage() {
   usePageTitle('Driver portal');
-  const { user, authReady, requireLogin, logout } = useApp();
+  const { user, authReady, requireLogin, logout, setIsProfileModalOpen } = useApp();
   const [me, setMe] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -111,9 +111,18 @@ export default function DriverPortalPage() {
       <div className="max-w-xl mx-auto space-y-5">
         <div className="bg-slate-900 text-white rounded-2xl p-5 flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-400">{driver.vehicleNo}</p>
+            <p className="text-xs text-slate-400 font-mono">{driver.vehicleNo}</p>
             <h1 className="text-lg font-black">{driver.name || 'Driver'}</h1>
-            <p className="text-[11px] text-slate-400">★ {Number(driver.rating).toFixed(1)}</p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-[11px] text-amber-400 font-bold">★ {Number(driver.rating).toFixed(1)}</span>
+              <span className="text-slate-600">·</span>
+              <button
+                onClick={() => setIsProfileModalOpen(true)}
+                className="text-[11px] text-emerald-400 hover:text-emerald-300 font-bold underline"
+              >
+                Profile & KYC Docs
+              </button>
+            </div>
           </div>
           <button
             disabled={!approved || busy || !!trip}

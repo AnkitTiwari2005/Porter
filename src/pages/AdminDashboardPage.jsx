@@ -278,7 +278,7 @@ const TABS = [['orders', 'Orders'], ['drivers', 'Drivers'], ['pricing', 'Pricing
 
 export default function AdminDashboardPage() {
   usePageTitle('Admin console');
-  const { user, authReady, requireLogin, logout, setIsLoginModalOpen } = useApp();
+  const { user, authReady, requireLogin, logout, setIsLoginModalOpen, setIsProfileModalOpen } = useApp();
   const [tab, setTab] = useState('orders');
   const [tick, setTick] = useState(0);
   const stats = useAdmin('/admin/stats', [tick]);
@@ -310,7 +310,13 @@ export default function AdminDashboardPage() {
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div><p className="text-xs text-indigo-400 font-bold uppercase tracking-wider">Operations</p><h1 className="text-2xl font-black text-white">Admin console</h1></div>
-          <button onClick={logout} className={`${btn} border-slate-600 text-slate-300`}>Log out</button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setIsProfileModalOpen(true)} className={`${btn} border-indigo-500/60 text-indigo-300 hover:bg-indigo-950/60 flex items-center gap-1.5`}>
+              <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Admin Profile & 2FA</span>
+            </button>
+            <button onClick={logout} className={`${btn} border-slate-600 text-slate-300 hover:bg-slate-800`}>Log out</button>
+          </div>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {kpis.map((k) => (

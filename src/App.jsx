@@ -6,6 +6,7 @@ import Footer from './components/Footer';
 import CitySelectorModal from './components/CitySelectorModal';
 import LoginModal from './components/LoginModal';
 import TrackOrderModal from './components/TrackOrderModal';
+import ProfileModal from './components/ProfileModal';
 
 import HomePage from './pages/HomePage';
 import FareEstimatePage from './pages/FareEstimatePage';
@@ -67,6 +68,7 @@ export default function App() {
           <CitySelectorModal />
           <LoginModal />
           <TrackOrderModal />
+          <ProfileModal />
         </div>
       </BrowserRouter>
     </AppProvider>
